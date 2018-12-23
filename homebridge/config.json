@@ -1,0 +1,20 @@
+
+{
+    "bridge": {
+        "name": "Homebridge",
+        "username": "56:2A:82:E3:11:96",
+        "port": 51826,
+        "pin": "801-82-297"
+    },
+
+    "description": "Kostin floor heating system",
+
+    "accessories": [
+        {
+            "accessory": "KostinFloorHeat",
+            "name": "KostinFloorHeat"
+        }
+    ],
+    "platforms": [
+    ]
+}
