@@ -3,9 +3,10 @@
 * `/etc/systemd/system/homebridge.service -> ./systemd/homebridge.service`
 * `/etc/default/homebridge -> ./default/homebridge`
 * `/var/lib/homebridge/config.json -> ./homebridge/config.json`
-* `/etc/monit/conf-enabled/thermostat -> ./monit/thermostat`
-* `/var/lib/smarthome/thermostat.py -> ./thermostat/thermostat.py`
-* `/etc/logrotate.d/thermostat -> ./logrotate/thermostat`
+* `/etc/monit/conf-enabled/floorheat -> ./monit/floorheat`
+* `/etc/monit/conf-enabled/well -> ./monit/well`
+* `/var/lib/smarthome/floorheat.py -> ./floorheat/floorheat.py`
+* `/etc/logrotate.d/floorheat -> ./logrotate/floorheat`
 
 # Monitoring homebridge
 
@@ -18,6 +19,27 @@
 `systemctl start homebridge`
 
 # Requirements
+
+* https://github.com/xpertsavenue/WiringOP-Zero (for Orange Pi)
+
+```
+git clone https://github.com/xpertsavenue/WiringOP-Zero.git
+cd WiringOP-Zero
+chmod +x ./build
+sudo ./build
+```
+
+* https://github.com/nRF24/RF24
+
+```
+git clone https://github.com/nRF24/RF24.git
+cd RF24
+./configure
+make
+sudo make install
+```
+
+# Python requirements
 
 * W1ThermSensor
 * GPIO
@@ -54,11 +76,11 @@ CREATE INDEX time_index ON history(Time);
 * `npm link moment`
 * `npm link fs`
 * `npm link fakegato-history`
-* `npm link`
+* `sudo npm link --unsafe-perm`
 
 # Dir structure
 
-* `/var/lib/thermostat/actual`
-* `/var/lib/thermostat/pin`
-* `/var/lib/thermostat/state`
-* `/var/lib/thermostat/target`
+* `/var/lib/smarthome/heatfloor_actual`
+* `/var/lib/smarthome/heatfloor_pin`
+* `/var/lib/smarthome/heatfloor_state`
+* `/var/lib/smarthome/heatfloor_target`

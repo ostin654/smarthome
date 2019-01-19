@@ -19,7 +19,7 @@ function KostinWell(log, config) {
 
 KostinWell.prototype = {
   getServices: function () {
-    this.log('<kostinwell> Getting Services');
+    this.log('Getting Services');
     let informationService = new Service.AccessoryInformation();
     informationService
       .setCharacteristic(Characteristic.Manufacturer, "Kostin Aleksey")
@@ -56,37 +56,37 @@ KostinWell.prototype = {
   },
 
   getCurrentRelativeHumidity: function(next) {
-    this.log('<kostinwell> Getting CurrentRelativeHumidity');
+    this.log('Getting CurrentRelativeHumidity');
     return next(null, 0);
   },
   
   getCurrentHumidifierDehumidifierState: function(next) {
-    this.log('<kostinwell> Getting CurrentHumidifierDehumidifierState');
+    this.log('Getting CurrentHumidifierDehumidifierState');
     return next(null, Characteristic.CurrentHumidifierDehumidifierState.INACTIVE);
   },
   
   setTargetHumidifierDehumidifierState: function (next) {
-    this.log('<kostinwell> Setting TargetHumidifierDehumidifierState');
+    this.log('Setting TargetHumidifierDehumidifierState');
     return next();
   },
   
   getTargetHumidifierDehumidifierState: function (next) {
-    this.log('<kostinwell> Getting TargetHumidifierDehumidifierState');
+    this.log('Getting TargetHumidifierDehumidifierState');
     return next(null, Characteristic.TargetHumidifierDehumidifierState.HUMIDIFIER);
   },
   
   setActive: function (next) {
-    this.log('<kostinwell> Setting active');
+    this.log('Setting active');
     return next();
   },
   
   getActive: function (next) {
-    this.log('<kostinwell> Getting active');
+    this.log('Getting active');
     return next(null, Characteristic.Active.INACTIVE);
   },
 
   getWaterLevel: function (next) {
-    this.log('<kostinwell> Getting waterlevel');
+    this.log('Getting waterlevel');
     this.getLastDataSQLite((err, row) => {
       if (err) {
         return next(err);
@@ -96,7 +96,7 @@ KostinWell.prototype = {
   },
   
   getLastDataSQLite: function(next) {
-    this.log('<kostinwell> Getting data from SQLite');
+    this.log('Getting data from SQLite');
     let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
       if (err) {
         return next(err);

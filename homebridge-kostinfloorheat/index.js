@@ -14,6 +14,10 @@ const moment = require('moment');
 
 function KostinFloorHeat(log, config) {
   this.log = log;
+  this.database = typeof config["database"]  !== 'undefined' ? config["database"] : '/var/lib/smarthome/floorheat.db';
+  this.table = typeof config["table"]  !== 'undefined' ? config["table"] : 'history';
+  this.state_file = typeof config["state_file"]  !== 'undefined' ? config["state_file"] : '/var/lib/smarthome/floorheat_state';
+  this.target_file = typeof config["target_file"]  !== 'undefined' ? config["target_file"] : '/var/lib/smarthome/floorheat_target';
   this.loggingService = new FakeGatoHistoryService("thermo", this);
   timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
 }
@@ -30,41 +34,25 @@ KostinFloorHeat.prototype = {
     thermostatService
       .getCharacteristic(Characteristic.CurrentHeatingCoolingState)
         .on('get', this.getCurrentState.bind(this));
-        //perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY]
-        //Characteristic.CurrentHeatingCoolingState.OFF = 0;
-        //Characteristic.CurrentHeatingCoolingState.HEAT = 1;
-        //Characteristic.CurrentHeatingCoolingState.COOL = 2;
 
     thermostatService
       .getCharacteristic(Characteristic.TargetHeatingCoolingState)
         .on('set', this.setTargetState.bind(this))
         .on('get', this.getTargetState.bind(this));
-        //perms: [Characteristic.Perms.READ, Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY]
-        //Characteristic.TargetHeatingCoolingState.OFF = 0;
-        //Characteristic.TargetHeatingCoolingState.HEAT = 1;
-        //Characteristic.TargetHeatingCoolingState.COOL = 2;
-        //Characteristic.TargetHeatingCoolingState.AUTO = 3;
 
     thermostatService
       .getCharacteristic(Characteristic.CurrentTemperature)
         .on('get', this.getCurrentTemperature.bind(this));
-        //format: Characteristic.Formats.FLOAT,
-        //perms: [Characteristic.Perms.READ, Characteristic.Perms.NOTIFY]
 
     thermostatService
       .getCharacteristic(Characteristic.TargetTemperature)
         .on('set', this.setTargetTemperature.bind(this))
         .on('get', this.getTargetTemperature.bind(this));
-        //format: Characteristic.Formats.FLOAT,
-        //perms: [Characteristic.Perms.READ, Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY]
 
     thermostatService
       .getCharacteristic(Characteristic.TemperatureDisplayUnits)
         .on('set', this.setDisplayUnits.bind(this))
         .on('get', this.getDisplayUnits.bind(this));
-        //perms: [Characteristic.Perms.READ, Characteristic.Perms.WRITE, Characteristic.Perms.NOTIFY]
-        //Characteristic.TemperatureDisplayUnits.CELSIUS = 0;
-        //Characteristic.TemperatureDisplayUnits.FAHRENHEIT = 1;
 
     this.informationService = informationService;
     this.thermostatService = thermostatService;
@@ -73,12 +61,12 @@ KostinFloorHeat.prototype = {
 
   updateHistory: function() {
     this.log('Updating history...');
-    let db = new sqlite3.Database('/var/lib/thermostat/floorheat.db', sqlite3.OPEN_READONLY, (err) => {
+    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
       if (err) {
         return this.log(err.message);
       }
     });
-    db.get("select avg(CurrentTemperature) as currentTemp, avg(TargetTemperature) as setTemp, case when CurrentState='HEAT' then 100 else 0 end as valvePosition from history where Time > (julianday('now') - 2440587.5) * 86400.0 - 600", [], (err, row) => {
+    db.get("select avg(CurrentTemperature) as currentTemp, avg(TargetTemperature) as setTemp, case when CurrentState='HEAT' then 100 else 0 end as valvePosition from "+this.table+" where Time > (julianday('now') - 2440587.5) * 86400.0 - 600", [], (err, row) => {
       if (err) {
         return this.log(err.message);
       }
@@ -91,12 +79,12 @@ KostinFloorHeat.prototype = {
 
   getLastData: function(next) {
     this.log('Getting last data...');
-    let db = new sqlite3.Database('/var/lib/thermostat/floorheat.db', sqlite3.OPEN_READONLY, (err) => {
+    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
       if (err) {
         return next(err);
       }
     });
-    db.get('select * from history order by Time desc limit 1', [], next);
+    db.get('select * from '+this.table+' order by Time desc limit 1', [], next);
     db.close();
   },
 
@@ -121,9 +109,9 @@ KostinFloorHeat.prototype = {
 
   setTargetState: function (state, next) {
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      fs.writeFileSync("/var/lib/thermostat/state", "on");
+      fs.writeFileSync(this.state_file, "on");
     } else {
-      fs.writeFileSync("/var/lib/thermostat/state", "off");
+      fs.writeFileSync(this.state_file, "off");
     }
     return next();
   },
@@ -160,7 +148,7 @@ KostinFloorHeat.prototype = {
   },
 
   setTargetTemperature: function (target, next) {
-    fs.writeFileSync("/var/lib/thermostat/target", target.toString());
+    fs.writeFileSync(this.target_file, target.toString());
     return next();
   },
 

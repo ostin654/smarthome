@@ -7,7 +7,9 @@ import sys
 from datetime import datetime
 import signal
 
-log = open("/var/lib/thermostat/thermostat.log", "a")
+PREFIX = "/var/lib/smarthome"
+
+log = open(PREFIX+"/floorheat.log", "a")
 log.write("%s Daemon started\n" % datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"))
 log.close()
 
@@ -20,7 +22,7 @@ class GracefulKiller:
     def exit_gracefully(self,signum, frame):
         self.kill_now = True
 
-file = open("/var/lib/thermostat/pin", "r")
+file = open(PREFIX+"/floorheat_pin", "r")
 pin = int(file.read())
 file.close()
 
@@ -29,29 +31,25 @@ GPIO.setup(pin, GPIO.OUT)
 
 lastState = 'OFF'
 
-historyConnection = sqlite3.connect('/var/lib/thermostat/floorheat.db')
+historyConnection = sqlite3.connect(PREFIX+"/floorheat.db")
 historyCursor = historyConnection.cursor()
 
 while True:
     killer = GracefulKiller()
     try:
-        file = open("/var/lib/thermostat/state", "r")
+        file = open(PREFIX+"/floorheat_state", "r")
         state = file.read()
         file.close()
 
-        log = open("/var/lib/thermostat/thermostat.log", "a")
+        log = open(PREFIX+"/floorheat.log", "a")
 
         if state == 'on':
-            file = open("/var/lib/thermostat/target", "r")
+            file = open(PREFIX+"/floorheat_target", "r")
             targetTemp = float(file.read())
             file.close()
 
             sensor = W1ThermSensor()
             actualTemp = sensor.get_temperature()
-
-            file = open("/var/lib/thermostat/actual", "w")
-            file.write("%s" % actualTemp)
-            file.close()
 
             log.write("%s Actual temperature is %.1f˚C\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), actualTemp))
 
@@ -69,7 +67,7 @@ while True:
 
         else:
             GPIO.output(pin, False)
-            log.write("%s Thermostat is swithed off\n" % datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"))
+            log.write("%s Floorheat is swithed off\n" % datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"))
 
             lastState = 'OFF'
 
@@ -91,6 +89,6 @@ while True:
 GPIO.cleanup()
 historyConnection.close()
 
-log = open("/var/lib/thermostat/thermostat.log", "a")
+log = open(PREFIX+"/floorheat.log", "a")
 log.write("%s Daemon terminated\n" % datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"))
 log.close()

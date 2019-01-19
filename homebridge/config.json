@@ -1,4 +1,3 @@
-
 {
     "bridge": {
         "name": "Homebridge",
@@ -17,7 +16,7 @@
         {
             "accessory": "KostinWell",
             "name": "KostinWell"
-        },
+        }
     ],
     "platforms": [
     ]

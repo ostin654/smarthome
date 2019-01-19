@@ -1,4 +1,4 @@
-/var/lib/thermostat/thermostat.log {
+/var/lib/smarthome/floorheat.log {
     rotate 4
     weekly
     minsize 1M
