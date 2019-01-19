@@ -1,0 +1,28 @@
+{
+  "name": "homebridge-kostinwell",
+  "version": "1.0.0",
+  "description": "Kostin well",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [
+    "homebridge-plugin",
+    "kostinwell"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/git/kostinwell.git"
+  },
+  "author": "Kostin Aleksey",
+  "license": "None",
+  "dependencies": {
+    "sqlite3": "^4.0.4"
+  },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  },
+  "bugs": {
+    "url": "https://example.com/"
+  },
+  "homepage": "https://example.com/"
+}

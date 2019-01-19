@@ -4,7 +4,7 @@
 * `/etc/default/homebridge -> ./default/homebridge`
 * `/var/lib/homebridge/config.json -> ./homebridge/config.json`
 * `/etc/monit/conf-enabled/thermostat -> ./monit/thermostat`
-* `/var/lib/thermostat/thermostat.py -> ./thermostat/thermostat.py`
+* `/var/lib/smarthome/thermostat.py -> ./thermostat/thermostat.py`
 * `/etc/logrotate.d/thermostat -> ./logrotate/thermostat`
 
 # Monitoring homebridge
@@ -14,6 +14,7 @@
 # Start/stop homebridge
 
 `systemctl stop homebridge`
+
 `systemctl start homebridge`
 
 # Requirements
@@ -26,10 +27,17 @@
 
 # Sqlite schema
 
-`sqlite3 /var/lib/thermostat/floorheat.db`
+`sqlite3 /var/lib/smarthome/floorheat.db`
 
 ```
 CREATE TABLE history(Id INTEGER PRIMARY KEY AUTOINCREMENT, Time INTEGER, CurrentTemperature REAL, TargetTemperature REAL, CurrentState TEXT, TargetState TEXT);
+CREATE INDEX time_index ON history(Time);
+```
+
+`sqlite3 /var/lib/smarthome/well.db`
+
+```
+CREATE TABLE history(Id INTEGER PRIMARY KEY AUTOINCREMENT, Time INTEGER, WaterLevel REAL);
 CREATE INDEX time_index ON history(Time);
 ```
 

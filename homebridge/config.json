@@ -7,13 +7,17 @@
         "pin": "801-82-297"
     },
 
-    "description": "Kostin floor heating system",
+    "description": "Kostin smarthome",
 
     "accessories": [
         {
             "accessory": "KostinFloorHeat",
             "name": "KostinFloorHeat"
-        }
+        },
+        {
+            "accessory": "KostinWell",
+            "name": "KostinWell"
+        },
     ],
     "platforms": [
     ]
