@@ -23,8 +23,8 @@ KostinFloorHeat.prototype = {
     let informationService = new Service.AccessoryInformation();
     informationService
       .setCharacteristic(Characteristic.Manufacturer, "Kostin Aleksey")
-      .setCharacteristic(Characteristic.Model, "FloorHeater1")
-      .setCharacteristic(Characteristic.SerialNumber, "100-1000001");
+      .setCharacteristic(Characteristic.Model, "FloorHeater2")
+      .setCharacteristic(Characteristic.SerialNumber, "100-1000002");
 
     let thermostatService = new Service.Thermostat("Floor heat");
     thermostatService

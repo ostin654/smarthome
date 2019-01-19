@@ -2,9 +2,9 @@
 {
     "bridge": {
         "name": "Homebridge",
-        "username": "56:2A:82:E3:11:96",
+        "username": "56:2A:92:E4:11:96",
         "port": 51826,
-        "pin": "801-82-297"
+        "pin": "801-82-298"
     },
 
     "description": "Kostin smarthome",
