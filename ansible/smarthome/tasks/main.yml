@@ -7,10 +7,34 @@
 - name: configure WIFI
   copy: src=wpa_supplicant.conf dest=/etc/wpa_supplicant/wpa_supplicant.conf
 
-#TODO enable i2c
-#TODO enable ssh
-#TODO enable UART
+- name: Enable I2C
+  lineinfile:
+    path: /boot/config.txt
+    regexp: '^dtparam=i2c_arm='
+    line: 'dtparam=i2c_arm=on'
+  register: i2c_on
 
+- name: Enable UART
+  lineinfile:
+    path: /boot/config.txt
+    regexp: '^enable_uart='
+    line: 'enable_uart=1'
+  register: uart_on
+
+- name: Reboot immediately if there was a change.
+  shell: "sleep 5 && reboot"
+  async: 1
+  poll: 0
+  when: i2c_on.changed or uart_on.changed
+
+
+- name: Wait for the reboot to complete if there was a change.
+  wait_for_connection:
+    connect_timeout: 20
+    sleep: 5
+    delay: 5
+    timeout: 300
+  when: i2c_on.changed or uart_on.changed
 
 
 - name: Install a list of packages
@@ -18,12 +42,15 @@
   vars:
     packages:
     - libavahi-compat-libdnssd-dev
+    - python-pip
+    - python3-pip
     - g++
     - git
     - make
     - sqlite3
     - monit
-
+    - i2c-tools
+    - wiringpi
 
 
 - name: Add Nodesource apt key.
@@ -52,13 +79,15 @@
   apt: "name=nodejs=10* state=present"
 
 - name: Install npm modules
-  shell: "npm install -g {{item}} --unsafe-perm"
+  shell: "npm list -g | grep {{item}} || npm install -g {{item}} --unsafe-perm"
   with_items:
     - sqlite3
     - moment
-    - fs
     - fakegato-history
+    - homebridge
 
+#TODO link modules
+#TODO link own modules
 
 - name: Add system user homebridge
   user: name=homebridge system=yes
@@ -86,29 +115,26 @@
   file: name=/var/lib/smarthome state=directory
 
 - name: copy sqlite3 scripts
-  copy: src=sqlite.sql dest=/var/lib/smarthome/init.sql
+  copy: src=init.sql dest=/var/lib/smarthome/init.sql
 
 - name: Create SQL tables
-  shell: "sqlite -init /var/lib/smarthome/init.sql /var/lib/smarthome/smarthome.db"
+  shell: "sqlite3 /var/lib/smarthome/smarthome.db < /var/lib/smarthome/init.sql"
 
 
 - name: Install python 2 modules
-  pip: "name={{item}}"
-  with_items:
-    - GPIO
-    - RPIO
-    - sqlite3
-    - time
-    - datetime
+  pip:
+    name:
+      - GPIO
+      - RPIO
+      - datetime
 
 - name: Install python 3 modules
-  pip: "name={{item}} executable: pip-3.3"
-  with_items:
-    - GPIO
-    - RPIO
-    - sqlite3
-    - time
-    - datetime
+  pip:
+    executable: pip3
+    name:
+      - GPIO
+      - RPIO
+      - datetime
 
 #TODO monit
 #TODO python script i2c->arduino
@@ -116,8 +142,8 @@
 #TODO ssh-tunnel
 
 
-- name: Make sure monit is running
-  systemd: state=started name=monit enabled=yes
+#- name: Make sure monit is running
+#  systemd: state=started name=monit enabled=yes
 
-- name: Make sure homebridge is running
-  systemd: state=started name=homebridge enabled=yes
+#- name: Make sure homebridge is running
+#  systemd: state=started name=homebridge enabled=yes

@@ -7,7 +7,6 @@ module.exports = function (homebridge) {
   homebridge.registerAccessory("homebridge-kostinwell", "KostinWell", KostinWell);
 };
 
-const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const moment = require('moment');
 

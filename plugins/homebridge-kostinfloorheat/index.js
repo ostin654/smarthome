@@ -8,7 +8,6 @@ module.exports = function (homebridge) {
   homebridge.registerAccessory("homebridge-kostinfloorheat", "KostinFloorHeat", KostinFloorHeat);
 };
 
-const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const moment = require('moment');
 
@@ -16,8 +15,7 @@ function KostinFloorHeat(log, config) {
   this.log = log;
   this.database = typeof config["database"]  !== 'undefined' ? config["database"] : '/var/lib/smarthome/floorheat.db';
   this.table = typeof config["table"]  !== 'undefined' ? config["table"] : 'history';
-  this.state_file = typeof config["state_file"]  !== 'undefined' ? config["state_file"] : '/var/lib/smarthome/floorheat_state';
-  this.target_file = typeof config["target_file"]  !== 'undefined' ? config["target_file"] : '/var/lib/smarthome/floorheat_target';
+  this.settings_table = typeof config["settings_table"]  !== 'undefined' ? config["settings_table"] : 'settings';
   this.loggingService = new FakeGatoHistoryService("thermo", this);
   timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
 }
@@ -27,8 +25,8 @@ KostinFloorHeat.prototype = {
     let informationService = new Service.AccessoryInformation();
     informationService
       .setCharacteristic(Characteristic.Manufacturer, "Kostin Aleksey")
-      .setCharacteristic(Characteristic.Model, "FloorHeater2")
-      .setCharacteristic(Characteristic.SerialNumber, "100-1000002");
+      .setCharacteristic(Characteristic.Model, "FloorHeater3")
+      .setCharacteristic(Characteristic.SerialNumber, "100-1000003");
 
     let thermostatService = new Service.Thermostat("Floor heat");
     thermostatService
@@ -60,7 +58,7 @@ KostinFloorHeat.prototype = {
   },
 
   updateHistory: function() {
-    this.log('Updating history...');
+    this.log('Updating history');
     let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
       if (err) {
         return this.log(err.message);
@@ -78,7 +76,7 @@ KostinFloorHeat.prototype = {
   },
 
   getLastData: function(next) {
-    this.log('Getting last data...');
+    this.log('Getting last data');
     let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
       if (err) {
         return next(err);
@@ -108,12 +106,18 @@ KostinFloorHeat.prototype = {
   },
 
   setTargetState: function (state, next) {
+    this.log('Setting target state');
+    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READWRITE, (err) => {
+      if (err) {
+        return next(err);
+      }
+    });
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      fs.writeFileSync(this.state_file, "on");
+      db.run('UPDATE '+this.settings_table+' SET TargetState=? WHERE Id=?', ['AUTO', 1], next);
     } else {
-      fs.writeFileSync(this.state_file, "off");
+      db.run('UPDATE '+this.settings_table+' SET TargetState=? WHERE Id=?', ['OFF', 1], next);
     }
-    return next();
+    db.close();
   },
 
   getTargetState: function (next) {
@@ -148,8 +152,14 @@ KostinFloorHeat.prototype = {
   },
 
   setTargetTemperature: function (target, next) {
-    fs.writeFileSync(this.target_file, target.toString());
-    return next();
+    this.log('Setting target temperature');
+    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READWRITE, (err) => {
+      if (err) {
+        return next(err);
+      }
+    });
+    db.run('UPDATE '+this.settings_table+' SET TargetTemperature=? WHERE Id=?', [target.toString(), 1], next);
+    db.close();
   },
 
   getTargetTemperature: function (next) {

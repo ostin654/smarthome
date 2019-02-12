@@ -1,6 +1,6 @@
 {
   "name": "homebridge-kostinwell",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Kostin well",
   "main": "index.js",
   "scripts": {},

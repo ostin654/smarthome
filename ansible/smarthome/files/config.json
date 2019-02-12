@@ -11,11 +11,16 @@
     "accessories": [
         {
             "accessory": "KostinFloorHeat",
-            "name": "KostinFloorHeat"
+            "name": "KostinFloorHeat",
+            "database": "/vat/lib/smarthome/smarthome.db",
+            "table": "floorheat",
+            "settings_table": "floorheat"
         },
         {
             "accessory": "KostinWell",
             "name": "KostinWell"
+            "database": "/vat/lib/smarthome/smarthome.db",
+            "table": "well"
         }
     ],
     "platforms": [
