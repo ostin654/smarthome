@@ -1,0 +1,123 @@
+---
+# tasks file for smarthome
+
+- name: Upgrade packages
+  apt: upgrade=dist update_cache=yes
+
+- name: configure WIFI
+  copy: src=wpa_supplicant.conf dest=/etc/wpa_supplicant/wpa_supplicant.conf
+
+#TODO enable i2c
+#TODO enable ssh
+#TODO enable UART
+
+
+
+- name: Install a list of packages
+  apt: "name={{ packages }}"
+  vars:
+    packages:
+    - libavahi-compat-libdnssd-dev
+    - g++
+    - git
+    - make
+    - sqlite3
+    - monit
+
+
+
+- name: Add Nodesource apt key.
+  apt_key:
+    url: https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
+    id: "68576280"
+    state: present
+
+- name: Ensure apt-transport-https is installed.
+  apt: name=apt-transport-https state=present
+
+- name: Add NodeSource repositories for Node.js.
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items:
+    - "deb https://deb.nodesource.com/node_10.x {{ ansible_distribution_release }} main"
+    - "deb-src https://deb.nodesource.com/node_10.x {{ ansible_distribution_release }} main"
+  register: node_repo
+
+- name: Update apt cache if repo was added.
+  apt: update_cache=yes
+  when: node_repo.changed
+
+- name: Ensure Node.js and npm are installed.
+  apt: "name=nodejs=10* state=present"
+
+- name: Install npm modules
+  shell: "npm install -g {{item}} --unsafe-perm"
+  with_items:
+    - sqlite3
+    - moment
+    - fs
+    - fakegato-history
+
+
+- name: Add system user homebridge
+  user: name=homebridge system=yes
+
+- name: make homebridge dir
+  file: name=/var/lib/homebridge state=directory owner=homebridge recurse=yes
+
+- name: copy homebridge config
+  copy: src=config.json dest=/var/lib/homebridge/config.json owner=homebridge
+
+- name: copy homebridge defaults
+  copy: src=homebridge.def dest=/etc/default/homebridge
+  register: systemd_defaults
+
+- name: copy homebridge service
+  copy: src=homebridge.srv dest=/etc/systemd/system/homebridge.service
+  register: systemd_service
+
+- name: just force systemd to reread configs
+  systemd: daemon_reload=yes
+  when: systemd_defaults.changed or systemd_service.changed
+
+
+- name: make smarthome dir
+  file: name=/var/lib/smarthome state=directory
+
+- name: copy sqlite3 scripts
+  copy: src=sqlite.sql dest=/var/lib/smarthome/init.sql
+
+- name: Create SQL tables
+  shell: "sqlite -init /var/lib/smarthome/init.sql /var/lib/smarthome/smarthome.db"
+
+
+- name: Install python 2 modules
+  pip: "name={{item}}"
+  with_items:
+    - GPIO
+    - RPIO
+    - sqlite3
+    - time
+    - datetime
+
+- name: Install python 3 modules
+  pip: "name={{item}} executable: pip-3.3"
+  with_items:
+    - GPIO
+    - RPIO
+    - sqlite3
+    - time
+    - datetime
+
+#TODO monit
+#TODO python script i2c->arduino
+#TODO logrotate
+#TODO ssh-tunnel
+
+
+- name: Make sure monit is running
+  systemd: state=started name=monit enabled=yes
+
+- name: Make sure homebridge is running
+  systemd: state=started name=homebridge enabled=yes

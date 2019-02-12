@@ -1,4 +1,0 @@
- check process smarthome_well with pidfile /var/lib/smarthome/well.pid
-   start program = "/sbin/start-stop-daemon -Sbvmx /var/lib/smarthome/well -p /var/lib/smarthome/well.pid -- 11 10 102 /var/lib/smarthome/well.db"
-   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/well.pid"
-   if 5 restarts with 5 cycles then timeout

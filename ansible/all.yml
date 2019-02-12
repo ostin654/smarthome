@@ -1,0 +1,8 @@
+---
+
+- name: Configure *Pi
+  hosts:
+    - pi
+  roles:
+    - smarthome
+  become: yes
