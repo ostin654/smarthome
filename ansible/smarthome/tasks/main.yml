@@ -12,6 +12,7 @@
     path: /boot/config.txt
     regexp: '^dtparam=i2c_arm='
     line: 'dtparam=i2c_arm=on'
+  when: pi_family is defined and pi_family=='raspberrypi'
   register: i2c_on
 
 - name: Enable UART
@@ -19,6 +20,7 @@
     path: /boot/config.txt
     regexp: '^enable_uart='
     line: 'enable_uart=1'
+  when: pi_family is defined and pi_family=='raspberrypi'
   register: uart_on
 
 - name: Reboot immediately if there was a change.
@@ -51,6 +53,8 @@
     - monit
     - i2c-tools
     - wiringpi
+    - tree
+    - mc
 
 
 - name: Add Nodesource apt key.
@@ -86,8 +90,45 @@
     - fakegato-history
     - homebridge
 
-#TODO link modules
-#TODO link own modules
+
+- name: Checkout smarthome repo
+  git:
+    repo: 'https://github.com/ostin654/smarthome.git'
+    dest: ~/smarthome
+  become: no
+
+
+- name: Link floorheat
+  shell: "npm link --unsafe-perm"
+  args:
+    chdir: /home/pi/smarthome/plugins/homebridge-kostinfloorheat
+
+- name: Link modules for floorheat
+  shell: "npm link {{item}}"
+  with_items:
+    - sqlite3
+    - moment
+    - fakegato-history
+  args:
+    chdir: ~/smarthome/plugins/homebridge-kostinfloorheat
+  become: no
+
+
+- name: Link well
+  shell: "npm link --unsafe-perm"
+  args:
+    chdir: /home/pi/smarthome/plugins/homebridge-kostinwell
+
+- name: Link modules for well
+  shell: "npm link {{item}}"
+  with_items:
+    - sqlite3
+    - moment
+    - fakegato-history
+  args:
+    chdir: ~/smarthome/plugins/homebridge-kostinwell
+  become: no
+
 
 - name: Add system user homebridge
   user: name=homebridge system=yes

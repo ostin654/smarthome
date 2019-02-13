@@ -4,4 +4,4 @@ HOMEBRIDGE_OPTS=-U /var/lib/homebridge
 
 # If you uncomment the following line, homebridge will log more 
 # You can display this via systemd's journalctl: journalctl -f -u homebridge
-# DEBUG=*
+DEBUG=*

@@ -18,7 +18,7 @@
         },
         {
             "accessory": "KostinWell",
-            "name": "KostinWell"
+            "name": "KostinWell",
             "database": "/vat/lib/smarthome/smarthome.db",
             "table": "well"
         }
