@@ -7,6 +7,7 @@
 - name: configure WIFI
   copy: src=wpa_supplicant.conf dest=/etc/wpa_supplicant/wpa_supplicant.conf
 
+
 - name: Enable I2C
   lineinfile:
     path: /boot/config.txt
@@ -28,7 +29,6 @@
   async: 1
   poll: 0
   when: i2c_on.changed or uart_on.changed
-
 
 - name: Wait for the reboot to complete if there was a change.
   wait_for_connection:
@@ -52,9 +52,12 @@
     - sqlite3
     - monit
     - i2c-tools
-    - wiringpi
     - tree
     - mc
+
+- name: Install wiringpi
+  apt: "name=wiringpi"
+  when: pi_family is defined and pi_family=='raspberrypi'
 
 
 - name: Add Nodesource apt key.
@@ -101,7 +104,7 @@
 - name: Link floorheat
   shell: "npm link --unsafe-perm"
   args:
-    chdir: /home/pi/smarthome/plugins/homebridge-kostinfloorheat
+    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinfloorheat"
 
 - name: Link modules for floorheat
   shell: "npm link {{item}}"
@@ -110,14 +113,13 @@
     - moment
     - fakegato-history
   args:
-    chdir: ~/smarthome/plugins/homebridge-kostinfloorheat
-  become: no
+    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinfloorheat"
 
 
 - name: Link well
   shell: "npm link --unsafe-perm"
   args:
-    chdir: /home/pi/smarthome/plugins/homebridge-kostinwell
+    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinwell"
 
 - name: Link modules for well
   shell: "npm link {{item}}"
@@ -126,8 +128,7 @@
     - moment
     - fakegato-history
   args:
-    chdir: ~/smarthome/plugins/homebridge-kostinwell
-  become: no
+    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinwell"
 
 
 - name: Add system user homebridge
@@ -168,6 +169,7 @@
       - GPIO
       - RPIO
       - datetime
+  when: pi_family is defined and pi_family=='raspberrypi'
 
 - name: Install python 3 modules
   pip:
@@ -176,6 +178,8 @@
       - GPIO
       - RPIO
       - datetime
+  when: pi_family is defined and pi_family=='raspberrypi'
+
 
 #TODO monit
 #TODO python script i2c->arduino
