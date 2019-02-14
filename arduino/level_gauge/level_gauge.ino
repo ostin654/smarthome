@@ -1,81 +1,59 @@
-#include <SPI.h>
-#include <RF24.h>
-#include <QuadDisplay2.h>
+#define ANALOG_PIN A0
+#define SERIAL_PIN 2
+#define LED_PIN 13
+//#define DEBUG
 
-// создаём объект класса QuadDisplay и передаём номера пинов CS, DI и ⎍
-QuadDisplay qd(10, 9, 8);
-
-RF24 radio(1, 2);
-
-int gaugePin = A0;
-
-const uint32_t pipe_out = 555555550;
-const uint32_t pipe_in = 555555555;
-
-typedef byte request_packet;
-typedef struct {
-  float water_level;
-} response_packet_well;
-
-request_packet request = 0;
-response_packet_well response_well;
-
-void setup()   
+void setup()
 {
-  qd.begin();
-  qd.displayClear();
-  delay(100);
-  qd.displayDigits(QD_L, QD_o, QD_A, QD_d); // Load
+  Serial1.begin(9600);
+  while (!Serial1);
 
-  radio.begin();
+  #ifdef DEBUG
+  Serial.begin(9600);
+  while (!Serial);
+  #endif
+  
+  pinMode(SERIAL_PIN, OUTPUT);
+  digitalWrite(SERIAL_PIN, HIGH);
 
-  delay(2000);
-
-  radio.setDataRate(RF24_1MBPS);
-  radio.setCRCLength(RF24_CRC_16);
-  radio.setPALevel(RF24_PA_MAX);
-
-  radio.setChannel(102);
-  radio.setRetries(15, 15);
-
-  radio.setAutoAck(true);
-  radio.enableAckPayload();
-  radio.enableDynamicPayloads();
-
-  radio.powerUp();
-
-  delay(2000);
-
-  radio.openWritingPipe(pipe_out);
-  radio.openReadingPipe(1,pipe_in);
-
-  delay(1000);
-
-  radio.startListening();
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+}
+ 
+void loop()
+{
+  Serial1.println(analogRead(ANALOG_PIN));
+  #ifdef DEBUG
+  Serial.println(level);
+  #endif
+  blinkOk();
+  delay(300);
 }
 
-void loop()  
+void blinkOk()
 {
-  // get level gauge data
-  response_well.water_level = analogRead(gaugePin) * 7.0 / 1023.0;
-
-  qd.displayFloat(response_well.water_level, 2);
-  radio.writeAckPayload(1, &response_well, sizeof(response_packet_well));
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
+  delay(50);
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
+  delay(50);
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
   delay(100);
 
-  if(radio.available()) {
-    radio.read(&request, sizeof(request_packet));
-    flash();
-  }
-}
-
-void flash()
-{
-    digitalWrite(13, HIGH);
-    delay(50);
-    digitalWrite(13, LOW);
-    delay(50);
-    digitalWrite(13, HIGH);
-    delay(50);
-    digitalWrite(13, LOW);
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
+  delay(50);
+  digitalWrite(LED_PIN, HIGH);
+  delay(80);
+  digitalWrite(LED_PIN, LOW);
+  delay(50);
+  digitalWrite(LED_PIN, HIGH);
+  delay(200);
+  digitalWrite(LED_PIN, LOW);
 }
