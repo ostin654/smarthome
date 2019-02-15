@@ -73,10 +73,10 @@ while True:
         target_state = 'AUTO' if readLong()>0 else 'OFF'
 
         file = open(PREFIX+"/floorheat_target_state", "r")
-        targetState = float(file.read())
+        targetState = file.read()
         file.close()
         file = open(PREFIX+"/floorheat_target_temp", "r")
-        targetTemp = float(file.read())
+        targetTemp = file.read()
         file.close()
 
         if targetState == 'on':
