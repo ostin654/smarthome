@@ -63,20 +63,17 @@ while True:
         writeNumber(0xc0)
         cur_temp = float(readLong()) / 16              # celsium
         writeNumber(0xc1)
-        print readLong()
         target_temp = readLong()                       # celsium
         writeNumber(0xc2)
-        print readLong()
         cur_state = 'HEAT' if readLong()>0 else 'COOL'
         writeNumber(0xc3)
-        print readLong()
         target_state = 'AUTO' if readLong()>0 else 'OFF'
 
         file = open(PREFIX+"/floorheat_target_state", "r")
         targetState = file.read()
         file.close()
         file = open(PREFIX+"/floorheat_target_temp", "r")
-        targetTemp = file.read()
+        targetTemp = float(file.read())
         file.close()
 
         if targetState == 'on':
