@@ -90,7 +90,7 @@ KostinWell.prototype = {
       if (err) {
         return next(err);
       }
-      return next(null, row.WaterLevel);
+      return next(null, 100 * row.WaterLevel / 7);
     });
   },
   

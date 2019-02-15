@@ -10,16 +10,6 @@ from datetime import datetime
 import signal
 
 
-class GracefulKiller:
-    kill_now = False
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.exit_gracefully)
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-    def exit_gracefully(self,signum, frame):
-        self.kill_now = True
-
-
 def writeNumber(value):
     bus.write_byte(address, value)
     return -1
@@ -45,8 +35,6 @@ PREFIX = "/var/lib/smarthome"
 
 
 while True:
-    killer = GracefulKiller()
-    log = open(PREFIX+"/i2cgw.log", "a")
     try:
         historyConnection = sqlite3.connect(PREFIX+"/smarthome.db")
         historyCursor = historyConnection.cursor()
@@ -84,6 +72,7 @@ while True:
         writeNumber(int(targetTemp))
 
 
+        log = open(PREFIX+"/i2cgw.log", "a")
         log.write("%s Floor %.1f˚C => %.1f˚C Water %.2fm Gas %d/%d ppm Pressure %.2fb\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, water_level, lpg, methane, pressure))
 
         historyCursor.execute("INSERT INTO floorheat VALUES (NULL, ?, ?, ?, ?, ?)", [int(time()), cur_temp, target_temp, cur_state, target_state])
@@ -93,13 +82,10 @@ while True:
 
         historyConnection.close()
         log.close()
-
-        if killer.kill_now:
-            break
     except IOError:
+        log = open(PREFIX+"/i2cgw.log", "a")
         log.write("%s IOError\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S")))
+        log.close()
         pass
-    except KeyboardInterrupt:
-        break
 
     sleep(20)
