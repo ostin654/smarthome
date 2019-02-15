@@ -174,11 +174,18 @@ void loop()
   Serial.print(packet.target_floor_state);
   Serial.println();
   #endif
+
+  delay(1000);
 }
 
 void processMessage(int n) {
   byte data = 0;
   data = Wire.read();
+
+  #ifdef DEBUG
+  Serial.print("i2c process ");
+  Serial.println(data);
+  #endif
 
   switch (data) {
     case REGISTER_LPG:
@@ -190,14 +197,26 @@ void processMessage(int n) {
     case REGISTER_CUR_STATE:
     case REGISTER_TARGET_STATE:
       reg = data;
+      #ifdef DEBUG
+      Serial.println("Reg set");
+      #endif
       break;
     case REGISTER_STATE_OFF:
       packet.target_floor_state = 0;
+      #ifdef DEBUG
+      Serial.println("State off");
+      #endif
       break;
     case REGISTER_STATE_AUTO:
       packet.target_floor_state = 1;
+      #ifdef DEBUG
+      Serial.println("State on");
+      #endif
       break;
     case 0xff: // exclude i2cdetect
+      #ifdef DEBUG
+      Serial.println("Skip");
+      #endif
       break;
     default:
       reg = REGISTER_LPG;
@@ -208,15 +227,14 @@ void processMessage(int n) {
       if (packet.target_floor_temperature > 38) {
         packet.target_floor_temperature = 38;
       }
+      #ifdef DEBUG
+      Serial.print("Temp set ");
+      Serial.println(packet.target_floor_temperature);
+      #endif
       break;
   }
 
   req = 0;
-
-  #ifdef DEBUG
-  Serial.print("i2c process ");
-  Serial.println(data);
-  #endif
 }
 
 void requestEvent() {
