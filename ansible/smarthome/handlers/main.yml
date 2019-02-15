@@ -1,2 +1,6 @@
 ---
 # handlers file for smarthome
+
+- name: restart monit
+  service: name=monit state=restarted
+

@@ -1,4 +1,4 @@
- check process thermostat with pidfile /var/lib/thermostat/thermostat.pid
-   start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python3 -p /var/lib/thermostat/thermostat.pid -- /var/lib/thermostat/thermostat.py"
-   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/thermostat/thermostat.pid"
+ check process i2cgw with pidfile /var/lib/smarthome/i2cgw.pid
+   start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python3 -p /var/lib/smarthome/i2cgw.pid -- /var/lib/thermostat/i2cgw.py"
+   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/i2cgw.pid"
    if 5 restarts with 5 cycles then timeout

@@ -105,4 +105,4 @@ while True:
     except KeyboardInterrupt:
         break
 
-    sleep(60)
+    sleep(20)

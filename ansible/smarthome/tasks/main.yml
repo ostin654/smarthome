@@ -194,13 +194,20 @@
       - datetime
   when: pi_family is defined and pi_family=='raspberrypi'
 
-#TODO monit
-#TODO logrotate
+
+- name: copy monit conf
+  copy: src=monit dest=/etc/monit/conf-enabled/i2cgw
+  notify:
+    - restart monit
+
+- name: Make sure monit is running
+  systemd: state=started name=monit enabled=yes
+
+- name: copy logrotate conf
+  copy: src=logrotate dest=/etc/logrotate.d/i2cgw
+
 #TODO ssh-tunnel
 
 
-# - name: Make sure monit is running
-#   systemd: state=started name=monit enabled=yes
-
-# - name: Make sure homebridge is running
-#   systemd: state=started name=homebridge enabled=yes
+- name: Make sure homebridge is running
+  systemd: state=started name=homebridge enabled=yes
