@@ -8,6 +8,7 @@ module.exports = function (homebridge) {
   homebridge.registerAccessory("homebridge-kostinfloorheat", "KostinFloorHeat", KostinFloorHeat);
 };
 
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const moment = require('moment');
 
@@ -16,7 +17,10 @@ function KostinFloorHeat(log, config) {
 
   this.database = typeof config["database"]  !== 'undefined' ? config["database"] : '/var/lib/smarthome/floorheat.db';
   this.table = typeof config["table"]  !== 'undefined' ? config["table"] : 'history';
-  this.settings_table = typeof config["settings_table"]  !== 'undefined' ? config["settings_table"] : 'settings';
+
+  this.target_state_file = typeof config["target_state_file"]  !== 'undefined' ? config["target_state_file"] : '/var/lib/smarthome/floorheat_target_state';
+  this.target_temp_file = typeof config["target_temp_file"]  !== 'undefined' ? config["target_temp_file"] : '/var/lib/smarthome/floorheat_target_temp';
+
   this.db = new sqlite3.Database(this.database, (err) => {
     if (err) {
       return this.log(err.message);
@@ -104,9 +108,9 @@ KostinFloorHeat.prototype = {
   setTargetState: function (state, next) {
     this.log('Setting target state');
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      this.db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['AUTO'], next);
+      fs.writeFileSync(this.target_state_file, "on");
     } else {
-      this.db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['OFF'], next);
+      fs.writeFileSync(this.target_state_file, "off");
     }
   },
 
@@ -143,7 +147,8 @@ KostinFloorHeat.prototype = {
 
   setTargetTemperature: function (target, next) {
     this.log('Setting target temperature');
-    this.db.run('UPDATE '+this.settings_table+' SET TargetTemperature=?', [target.toString()], next);
+    fs.writeFileSync(this.target_temp_file, target.toString());
+    return next();
   },
 
   getTargetTemperature: function (next) {

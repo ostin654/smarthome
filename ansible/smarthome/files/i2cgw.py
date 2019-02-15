@@ -72,15 +72,19 @@ while True:
         print readLong()
         target_state = 'AUTO' if readLong()>0 else 'OFF'
 
-        historyCursor.execute("select * from floorheat_settings")
-        settings = historyCursor.fetchone()
+        file = open(PREFIX+"/floorheat_target_state", "r")
+        targetState = float(file.read())
+        file.close()
+        file = open(PREFIX+"/floorheat_target_temp", "r")
+        targetTemp = float(file.read())
+        file.close()
 
-        if settings[2] == 'OFF':
-            writeNumber(0xd0)
-        else:
+        if targetState == 'on':
             writeNumber(0xd1)
+        else:
+            writeNumber(0xd0)
 
-        writeNumber(int(settings[1]))
+        writeNumber(int(targetTemp))
 
 
         log.write("%s Floor %.1f˚C => %.1f˚C Water %.2fm Gas %d/%d ppm Pressure %.2fb\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, water_level, lpg, methane, pressure))
