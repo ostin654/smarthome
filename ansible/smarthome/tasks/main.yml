@@ -180,7 +180,8 @@
       - datetime
   when: pi_family is defined and pi_family=='raspberrypi'
 
-
+#TODO chmod smarthome dir 777
+#TODO chmod sqlite database 666
 #TODO monit
 #TODO python script i2c->arduino
 #TODO logrotate

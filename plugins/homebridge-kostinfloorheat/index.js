@@ -59,7 +59,7 @@ KostinFloorHeat.prototype = {
 
   updateHistory: function() {
     this.log('Updating history');
-    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
+    let db = new sqlite3.Database(this.database, (err) => {
       if (err) {
         return this.log(err.message);
       }
@@ -77,7 +77,7 @@ KostinFloorHeat.prototype = {
 
   getLastData: function(next) {
     this.log('Getting last data');
-    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READONLY, (err) => {
+    let db = new sqlite3.Database(this.database, (err) => {
       if (err) {
         return next(err);
       }
@@ -107,15 +107,15 @@ KostinFloorHeat.prototype = {
 
   setTargetState: function (state, next) {
     this.log('Setting target state');
-    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READWRITE, (err) => {
+    let db = new sqlite3.Database(this.database, (err) => {
       if (err) {
         return next(err);
       }
     });
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      db.run('UPDATE '+this.settings_table+' SET TargetState=? WHERE Id=?', ['AUTO', 1], next);
+      db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['AUTO'], next);
     } else {
-      db.run('UPDATE '+this.settings_table+' SET TargetState=? WHERE Id=?', ['OFF', 1], next);
+      db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['OFF'], next);
     }
     db.close();
   },
@@ -153,12 +153,12 @@ KostinFloorHeat.prototype = {
 
   setTargetTemperature: function (target, next) {
     this.log('Setting target temperature');
-    let db = new sqlite3.Database(this.database, sqlite3.OPEN_READWRITE, (err) => {
+    let db = new sqlite3.Database(this.database, (err) => {
       if (err) {
         return next(err);
       }
     });
-    db.run('UPDATE '+this.settings_table+' SET TargetTemperature=? WHERE Id=?', [target.toString(), 1], next);
+    db.run('UPDATE '+this.settings_table+' SET TargetTemperature=?', [target.toString()], next);
     db.close();
   },
 
