@@ -46,7 +46,7 @@ PREFIX = "/var/lib/smarthome"
 
 while True:
     killer = GracefulKiller()
-    log = open(PREFIX+"/smarthome.log", "a")
+    log = open(PREFIX+"/i2cgw.log", "a")
     try:
         historyConnection = sqlite3.connect(PREFIX+"/smarthome.db")
         historyCursor = historyConnection.cursor()
