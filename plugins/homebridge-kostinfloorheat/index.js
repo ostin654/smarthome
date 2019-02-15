@@ -112,6 +112,7 @@ KostinFloorHeat.prototype = {
     } else {
       fs.writeFileSync(this.target_state_file, "off");
     }
+    return next();
   },
 
   getTargetState: function (next) {
