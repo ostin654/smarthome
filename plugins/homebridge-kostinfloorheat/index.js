@@ -13,9 +13,16 @@ const moment = require('moment');
 
 function KostinFloorHeat(log, config) {
   this.log = log;
+
   this.database = typeof config["database"]  !== 'undefined' ? config["database"] : '/var/lib/smarthome/floorheat.db';
   this.table = typeof config["table"]  !== 'undefined' ? config["table"] : 'history';
   this.settings_table = typeof config["settings_table"]  !== 'undefined' ? config["settings_table"] : 'settings';
+  this.db = new sqlite3.Database(this.database, (err) => {
+    if (err) {
+      return this.log(err.message);
+    }
+  });
+
   this.loggingService = new FakeGatoHistoryService("thermo", this);
   timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
 }
@@ -59,31 +66,20 @@ KostinFloorHeat.prototype = {
 
   updateHistory: function() {
     this.log('Updating history');
-    let db = new sqlite3.Database(this.database, (err) => {
-      if (err) {
-        return this.log(err.message);
-      }
-    });
-    db.get("select avg(CurrentTemperature) as currentTemp, avg(TargetTemperature) as setTemp, case when CurrentState='HEAT' then 100 else 0 end as valvePosition from "+this.table+" where Time > (julianday('now') - 2440587.5) * 86400.0 - 600", [], (err, row) => {
+
+    this.db.get("select avg(CurrentTemperature) as currentTemp, avg(TargetTemperature) as setTemp, case when CurrentState='HEAT' then 100 else 0 end as valvePosition from "+this.table+" where Time > (julianday('now') - 2440587.5) * 86400.0 - 600", [], (err, row) => {
       if (err) {
         return this.log(err.message);
       }
       this.loggingService.addEntry({time: moment().unix(), currentTemp:row.currentTemp.toFixed(2), setTemp:row.setTemp.toFixed(2), valvePosition:row.valvePosition});
     });
-    db.close();
 
     timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
   },
 
   getLastData: function(next) {
     this.log('Getting last data');
-    let db = new sqlite3.Database(this.database, (err) => {
-      if (err) {
-        return next(err);
-      }
-    });
-    db.get('select * from '+this.table+' order by Time desc limit 1', [], next);
-    db.close();
+    this.db.get('select * from '+this.table+' order by Time desc limit 1', [], next);
   },
 
   getCurrentState: function (next) {
@@ -107,17 +103,11 @@ KostinFloorHeat.prototype = {
 
   setTargetState: function (state, next) {
     this.log('Setting target state');
-    let db = new sqlite3.Database(this.database, (err) => {
-      if (err) {
-        return next(err);
-      }
-    });
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['AUTO'], next);
+      this.db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['AUTO'], next);
     } else {
-      db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['OFF'], next);
+      this.db.run('UPDATE '+this.settings_table+' SET TargetState=?', ['OFF'], next);
     }
-    db.close();
   },
 
   getTargetState: function (next) {
@@ -153,13 +143,7 @@ KostinFloorHeat.prototype = {
 
   setTargetTemperature: function (target, next) {
     this.log('Setting target temperature');
-    let db = new sqlite3.Database(this.database, (err) => {
-      if (err) {
-        return next(err);
-      }
-    });
-    db.run('UPDATE '+this.settings_table+' SET TargetTemperature=?', [target.toString()], next);
-    db.close();
+    this.db.run('UPDATE '+this.settings_table+' SET TargetTemperature=?', [target.toString()], next);
   },
 
   getTargetTemperature: function (next) {

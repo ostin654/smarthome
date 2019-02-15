@@ -42,26 +42,15 @@ def swap32(i):
 bus = smbus.SMBus(1)
 address = 0x18
 PREFIX = "/var/lib/smarthome"
-historyConnection = sqlite3.connect(PREFIX+"/smarthome.db")
-historyCursor = historyConnection.cursor()
-
-
-#  unsigned long lpg = 0;                       // 0xa0
-#  unsigned long methane = 0;                   // 0xa1
-#  unsigned long pressure = 0;                  // 0xa2
-#  unsigned long water_level = 0;               // 0xb0
-#  unsigned long current_floor_temperature = 0; // 0xc0
-#  unsigned long target_floor_temperature = 10; // 0xc1
-#  unsigned long current_floor_state = 0;       // 0xc2
-#  unsigned long target_floor_state = 0;        // 0xc3
-#define REGISTER_STATE_OFF    0xd0
-#define REGISTER_STATE_AUTO   0xd1
 
 
 while True:
     killer = GracefulKiller()
     log = open(PREFIX+"/smarthome.log", "a")
     try:
+        historyConnection = sqlite3.connect(PREFIX+"/smarthome.db")
+        historyCursor = historyConnection.cursor()
+
         writeNumber(0xa0)
         lpg = readLong()                               # ppm
         writeNumber(0xa1)
@@ -101,6 +90,9 @@ while True:
         historyCursor.execute("INSERT INTO gas VALUES (NULL, ?, ?, ?, ?)", [int(time()), lpg, methane, pressure])
         historyConnection.commit();
 
+        historyConnection.close()
+        log.close()
+
         if killer.kill_now:
             break
     except IOError:
@@ -109,7 +101,4 @@ while True:
     except KeyboardInterrupt:
         break
 
-    sleep(6)
-
-historyConnection.close()
-log.close()
+    sleep(60)
