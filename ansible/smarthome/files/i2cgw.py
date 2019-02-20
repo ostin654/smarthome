@@ -8,6 +8,7 @@ from time import sleep
 import sys
 from datetime import datetime
 import signal
+import os
 
 
 def writeNumber(value):
@@ -29,7 +30,15 @@ def swap32(i):
     return struct.unpack("<I", struct.pack(">I", i))[0]
 
 
-bus = smbus.SMBus(1)
+if os.path.exists("/dev/i2c-0"):
+    print "Selected 0"
+    bus = smbus.SMBus(0)
+elif os.path.exists("/dev/i2c-1"):
+    print "Selected 1"
+    bus = smbus.SMBus(1)
+else:
+    raise Exception("No bus /dev/i2c*")
+
 address = 0x18
 PREFIX = "/var/lib/smarthome"
 
