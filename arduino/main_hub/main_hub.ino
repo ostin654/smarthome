@@ -6,17 +6,22 @@
 #define PIN_MQ5_HEATER  12
 
 #define SERIAL_PIN 5
-#define LED_PIN 13
-#define DS_PIN 10
+#define RS485_LED_PIN A5
+#define DS_PIN A3
 #define TEMP_UPDATE_TIME 1000
 
 #define PRESSURE_PIN A2
-#define RELAY_PIN A4
+#define PRESS_FAILURE_LED A4
+#define RELAY_PIN 13
 
-#define GAS_FAILURE_PIN 9
+#define GAS_FAILURE_PIN 11
 #define GAS_FAILURE_LIMIT 300
 
+#define I2C_GROUND_PIN 3
+
 #define I2C_SLAVE_ADDRESS 0x18
+
+#define PING_PIN 7
 
 #define REGISTER_LPG          0xa0
 #define REGISTER_METHANE      0xa1
@@ -85,14 +90,26 @@ unsigned long dsGetTemperatureRaw()
 
 void setup()
 {
+  pinMode(I2C_GROUND_PIN, OUTPUT);
+  digitalWrite(I2C_GROUND_PIN, LOW);
+  
   pinMode(SERIAL_PIN, OUTPUT);
   digitalWrite(SERIAL_PIN, LOW);
+
+  pinMode(RS485_LED_PIN, OUTPUT);
+  digitalWrite(RS485_LED_PIN, LOW);
+
+  pinMode(PRESS_FAILURE_LED, OUTPUT);
+  digitalWrite(PRESS_FAILURE_LED, LOW);
 
   pinMode(GAS_FAILURE_PIN, OUTPUT);
   digitalWrite(GAS_FAILURE_PIN, LOW);
 
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
+
+  pinMode(PING_PIN, OUTPUT);
+  digitalWrite(PING_PIN, LOW);
 
   dsMesure();
 
@@ -126,15 +143,22 @@ void loop()
 
   if (packet.lpg > GAS_FAILURE_LIMIT || packet.methane > GAS_FAILURE_LIMIT) {
     digitalWrite(GAS_FAILURE_PIN, HIGH);
+  } else {
+    digitalWrite(GAS_FAILURE_PIN, LOW);
   }
 
   packet.pressure = analogRead(PRESSURE_PIN);
+  if (packet.pressure < 150) {
+    digitalWrite(PRESS_FAILURE_LED, HIGH);
+  } else {
+    digitalWrite(PRESS_FAILURE_LED, LOW);
+  }
 
   if (Serial1.available() > 0) {
     packet.water_level = Serial1.parseInt();
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(RS485_LED_PIN, HIGH);
   } else {
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(RS485_LED_PIN, LOW);
     #ifdef DEBUG
     Serial.println("No 485 data");
     #endif
@@ -174,6 +198,10 @@ void loop()
   Serial.print(packet.target_floor_state);
   Serial.println();
   #endif
+
+  digitalWrite(PING_PIN, HIGH);
+  delay(20);
+  digitalWrite(PING_PIN, LOW);
 
   delay(1000);
 }
