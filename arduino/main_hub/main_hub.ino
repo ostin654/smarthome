@@ -157,11 +157,13 @@ void loop()
   if (Serial1.available() > 0) {
     packet.water_level = Serial1.parseInt();
     digitalWrite(RS485_LED_PIN, HIGH);
+    delay(30);
   } else {
     digitalWrite(RS485_LED_PIN, LOW);
     #ifdef DEBUG
     Serial.println("No 485 data");
     #endif
+    delay(1000);
   }
 
   packet.current_floor_temperature = dsGetTemperatureRaw();
@@ -202,8 +204,6 @@ void loop()
   digitalWrite(PING_PIN, HIGH);
   delay(20);
   digitalWrite(PING_PIN, LOW);
-
-  delay(1000);
 }
 
 void processMessage(int n) {

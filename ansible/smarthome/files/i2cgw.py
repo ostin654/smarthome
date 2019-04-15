@@ -82,7 +82,7 @@ while True:
 
 
         log = open(PREFIX+"/i2cgw.log", "a")
-        log.write("%s Floor %.1f˚C => %.1f˚C Water %.2fm Gas %d/%d ppm Pressure %.2fb\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, water_level, lpg, methane, pressure))
+        log.write("%s Floor %.1f˚C => %.1f˚C (%s) Water %.2fm Gas %d/%d ppm Pressure %.2fb\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, cur_state, water_level, lpg, methane, pressure))
 
         historyCursor.execute("INSERT INTO floorheat VALUES (NULL, ?, ?, ?, ?, ?)", [int(time()), cur_temp, target_temp, cur_state, target_state])
         historyCursor.execute("INSERT INTO well VALUES (NULL, ?, ?)", [int(time()), water_level])

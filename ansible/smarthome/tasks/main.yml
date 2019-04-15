@@ -75,8 +75,8 @@
     repo: "{{ item }}"
     state: present
   with_items:
-    - "deb https://deb.nodesource.com/node_8.x {{ ansible_distribution_release }} main"
-    - "deb-src https://deb.nodesource.com/node_8.x {{ ansible_distribution_release }} main"
+    - "deb https://deb.nodesource.com/node_10.x {{ ansible_distribution_release }} main"
+    - "deb-src https://deb.nodesource.com/node_10.x {{ ansible_distribution_release }} main"
   register: node_repo
 
 - name: Update apt cache if repo was added.
@@ -84,7 +84,7 @@
   when: node_repo.changed
 
 - name: Ensure Node.js and npm are installed.
-  apt: "name=nodejs=8* state=present"
+  apt: "name=nodejs=10* state=present"
 
 - name: Install npm modules
   shell: "npm list -g | grep {{item}} || npm install -g {{item}} --unsafe-perm"
