@@ -1,3 +1,4 @@
+#include <QuadDisplay2.h>
 #include <Wire.h>
 #include <TroykaMQ.h>
 #include <OneWire.h>
@@ -21,6 +22,8 @@
 
 #define I2C_SLAVE_ADDRESS 0x18
 
+#define QD_PIN 8
+
 #define PING_PIN 7
 
 #define REGISTER_LPG          0xa0
@@ -38,6 +41,7 @@
 
 MQ5 mq5(PIN_MQ5, PIN_MQ5_HEATER);
 OneWire ds(DS_PIN);
+QuadDisplay qd(QD_PIN);
 
 struct DataPacket {
   unsigned long lpg = 0;                       // 0xa0
@@ -113,6 +117,9 @@ void setup()
 
   dsMesure();
 
+  qd.begin();
+  qd.displayInt(0);
+
   Wire.begin(I2C_SLAVE_ADDRESS);
   delay(1000);
   Wire.onReceive(processMessage);
@@ -167,6 +174,15 @@ void loop()
   }
 
   packet.current_floor_temperature = dsGetTemperatureRaw();
+  if (millis() % 4000 < 2000) {
+     qd.displayFloat((float)(packet.current_floor_temperature * 0.0625), 1);
+  } else {
+    if (packet.target_floor_state == 0) {
+      qd.displayDigits(QD_NONE, QD_o, QD_f, QD_f); 
+    } else {
+      qd.displayInt(packet.target_floor_temperature);
+    }
+  }
 
   if (packet.target_floor_state == 0) {
     digitalWrite(RELAY_PIN, LOW);
