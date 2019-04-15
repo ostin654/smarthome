@@ -7,10 +7,10 @@
 
 #define SERIAL_PIN 5
 #define RS485_LED_PIN A5
-#define DS_PIN A3
+#define DS_PIN 6
 #define TEMP_UPDATE_TIME 1000
 
-#define PRESSURE_PIN A2
+#define PRESSURE_PIN A3
 #define PRESS_FAILURE_LED A4
 #define RELAY_PIN 13
 
