@@ -3,22 +3,20 @@
 #include <TroykaMQ.h>
 #include <OneWire.h>
 
-#define PIN_MQ5         A1
-#define PIN_MQ5_HEATER  12
+#define PIN_MQ5         A3
+#define PIN_MQ5_HEATER  11
 
 #define SERIAL_PIN 5
 #define RS485_LED_PIN A5
-#define DS_PIN 6
+#define DS_PIN 10
 #define TEMP_UPDATE_TIME 1000
 
-#define PRESSURE_PIN A3
+#define PRESSURE_PIN A2
 #define PRESS_FAILURE_LED A4
-#define RELAY_PIN 13
+#define RELAY_PIN 12
 
-#define GAS_FAILURE_PIN 11
+#define GAS_FAILURE_PIN 9
 #define GAS_FAILURE_LIMIT 300
-
-#define I2C_GROUND_PIN 3
 
 #define I2C_SLAVE_ADDRESS 0x18
 
@@ -60,6 +58,9 @@ byte reg;
 byte req = 0;
 unsigned long to_send = 0;
 
+int median[3] = {0, 0, 0};   // массив для хранения трёх последних измерений
+byte i = 0;
+
 byte data[12];
 byte addr[8];
 long dsLastUpdateTime = 0;
@@ -92,11 +93,27 @@ unsigned long dsGetTemperatureRaw()
   return temperature;
 }
 
+// медианный фильтр из 3ёх значений
+float middle_of_3(int a, int b, int c) {
+  int middle;
+  if ((a <= b) && (a <= c)) {
+    middle = (b <= c) ? b : c;
+  }
+  else {
+    if ((b <= a) && (b <= c)) {
+      middle = (a <= c) ? a : c;
+    }
+    else {
+      middle = (a <= b) ? a : b;
+    }
+  }
+  return middle;
+}
+
+void(* resetFunc) (void) = 0; // объявляем функцию reset
+
 void setup()
-{
-  pinMode(I2C_GROUND_PIN, OUTPUT);
-  digitalWrite(I2C_GROUND_PIN, LOW);
-  
+{  
   pinMode(SERIAL_PIN, OUTPUT);
   digitalWrite(SERIAL_PIN, LOW);
 
@@ -162,8 +179,19 @@ void loop()
   }
 
   if (Serial1.available() > 0) {
-    packet.water_level = Serial1.parseInt();
-    digitalWrite(RS485_LED_PIN, HIGH);
+    int serialData = Serial1.parseInt();
+    if (serialData >= 0 && serialData <= 1023) {
+      if (i > 1) i = 0;
+      else i++;
+      median[i] = serialData;
+      packet.water_level = middle_of_3(median[0], median[1], median[2]);;
+      digitalWrite(RS485_LED_PIN, HIGH);
+    } else {
+      digitalWrite(RS485_LED_PIN, LOW);
+      #ifdef DEBUG
+      Serial.println("No 485 data");
+      #endif
+    }
     delay(30);
   } else {
     digitalWrite(RS485_LED_PIN, LOW);
@@ -220,6 +248,8 @@ void loop()
   digitalWrite(PING_PIN, HIGH);
   delay(20);
   digitalWrite(PING_PIN, LOW);
+
+  if (millis() > 300000) resetFunc(); //вызываем reset
 }
 
 void processMessage(int n) {
