@@ -149,7 +149,6 @@ void setup()
 
   Serial1.begin(9600);
   while (!Serial1);
-  Serial1.setTimeout(10000);
 
   mq5.heaterPwrHigh();
 }
@@ -220,7 +219,7 @@ void loop()
       digitalWrite(RELAY_PIN, HIGH);
       packet.current_floor_state = 1;
     }
-    if (packet.current_floor_temperature * 0.0625 > packet.target_floor_temperature + 5) {
+    if (packet.current_floor_temperature * 0.0625 > packet.target_floor_temperature + 3) {
       digitalWrite(RELAY_PIN, LOW);
       packet.current_floor_state = 0;
     }
@@ -272,7 +271,8 @@ void processMessage(int n) {
     case REGISTER_TARGET_STATE:
       reg = data;
       #ifdef DEBUG
-      Serial.println("Reg set");
+      Serial.print("Reg set ");
+      Serial.println(reg);
       #endif
       break;
     case REGISTER_STATE_OFF:
@@ -293,15 +293,12 @@ void processMessage(int n) {
       #endif
       break;
     default:
-      reg = REGISTER_LPG;
-      packet.target_floor_temperature = data;
-      if (packet.target_floor_temperature < 10) {
-        packet.target_floor_temperature = 10;
-      }
-      if (packet.target_floor_temperature > 38) {
-        packet.target_floor_temperature = 38;
+      if (10 <= data && data <= 33) {
+        packet.target_floor_temperature = data;
       }
       #ifdef DEBUG
+      Serial.print("Data ");
+      Serial.println(data);
       Serial.print("Temp set ");
       Serial.println(packet.target_floor_temperature);
       #endif
