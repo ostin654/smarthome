@@ -248,7 +248,7 @@ void loop()
   delay(20);
   digitalWrite(PING_PIN, LOW);
 
-  if (millis() > 300000) resetFunc(); //вызываем reset
+  //if (millis() > 300000) resetFunc(); //вызываем reset
 }
 
 void processMessage(int n) {
