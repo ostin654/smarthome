@@ -7,13 +7,11 @@
 #define RX_PIN 8
 #define SOIL_PIN A0
 #define DIR_PIN 9
-#define MAX_DRY 500
-#define DRY_DELAY 80000
-#define FIRST_DELAY 80000
+#define MAX_DRY 400000
+#define DRY_DELAY 172000000
 
 SoftwareSerial mySerial(RX_PIN, TX_PIN); // RX, TX
 TinyBME280 bme; // I2C
-unsigned long lastDryStart = 0;
 unsigned int soilHumidity = 0;
 bool relayState = LOW;
 
@@ -35,30 +33,18 @@ void setup() {
  
 void loop() {
   digitalWrite(SENSOR_PIN, HIGH);
-  delay(50);
+  delay(20);
   soilHumidity = analogRead(SOIL_PIN);
   digitalWrite(SENSOR_PIN, LOW);
-  
-  if (millis() > FIRST_DELAY * 1000) {
-    if (soilHumidity < 350) {
-      if (lastDryStart + DRY_DELAY * 1000 < millis()) {
-        lastDryStart = millis();
-      }
-      if (lastDryStart + MAX_DRY * 1000 < millis()) {
-        relayState = LOW;
-      } else {
-        relayState = HIGH;
-      }
-    }
-    if (soilHumidity > 450) {
-      relayState = LOW;
-    }
+
+  if (millis() % DRY_DELAY < MAX_DRY) {
+    relayState = HIGH;
+  } else {
+    relayState = LOW;
   }
 
   mySerial.print("Soil: ");
   mySerial.print(soilHumidity);
-  mySerial.print(" ; LastDry: ");
-  mySerial.print(lastDryStart);
   mySerial.print(" ; Millis: ");
   mySerial.print(millis());
   mySerial.print(" ; Relay: ");
