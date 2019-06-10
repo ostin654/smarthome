@@ -1,20 +1,23 @@
 //#include "printf.h"
 #include <SPI.h>
 #include <RF24.h>
+#include <LiquidCrystal_I2C.h>
 
 RF24 radio(6, 7);
+LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 const uint8_t pipe_out[5] = {232,205,3,145,35};
-const uint8_t pipe_in[5] = {141,205,3,145,35};
+const uint8_t pipe_in1[5] = {141,205,3,145,35};
+const uint8_t pipe_in2[5] = {142,205,3,145,35};
+const uint8_t pipe_in3[5] = {143,205,3,145,35};
+const uint8_t pipe_in4[5] = {144,205,3,145,35};
+const uint8_t pipe_in5[5] = {145,205,3,145,35};
 
 uint8_t pipeNum;
 unsigned long data = 0;
 
 void setup()   
 {
-  //Serial.begin(9600);
-  //while (!Serial);
-  //printf_begin();
   pinMode(8, OUTPUT);
   digitalWrite(8, LOW);
   pinMode(9, OUTPUT);
@@ -40,23 +43,101 @@ void setup()
   radio.setAutoAck(true);
 
   radio.openWritingPipe(pipe_out);
-  radio.openReadingPipe(1,pipe_in);
+  radio.openReadingPipe(1,pipe_in1);
+  radio.openReadingPipe(2,pipe_in2);
+  radio.openReadingPipe(3,pipe_in3);
+  radio.openReadingPipe(4,pipe_in4);
+  radio.openReadingPipe(5,pipe_in5);
 
   //radio.printDetails();
   radio.startListening(); // приём
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(1,0);
+  lcd.print("1:----");
+  lcd.setCursor(9,0);
+  lcd.print("2:----");
+  lcd.setCursor(1,1);
+  lcd.print("3:----");
+  lcd.setCursor(9,1);
+  lcd.print("4:----");
 }
 
 void loop()  
 {
   if (radio.available(&pipeNum)) {
     radio.read(&data, sizeof(data));
+
     if (pipeNum == 1) {
       digitalWrite(8, HIGH);
+      lcd.setCursor(0,0);
+      lcd.print("*");
+      lcd.setCursor(8,0);
+      lcd.print(" ");
+      lcd.setCursor(0,1);
+      lcd.print(" ");
+      lcd.setCursor(8,1);
+      lcd.print(" ");
+      lcd.setCursor(3,0);
+      lcd.print(data/1000);
     }
-    //Serial.print(data);
-    //Serial.print(" => ");
-    //Serial.println(pipeNum);
+    if (pipeNum == 2) {
+      digitalWrite(9, HIGH);
+      lcd.setCursor(0,0);
+      lcd.print(" ");
+      lcd.setCursor(8,0);
+      lcd.print("*");
+      lcd.setCursor(0,1);
+      lcd.print(" ");
+      lcd.setCursor(8,1);
+      lcd.print(" ");
+      lcd.setCursor(3,0);
+      lcd.setCursor(11,0);
+      lcd.print(data/1000);
+    }
+    if (pipeNum == 3) {
+      digitalWrite(10, HIGH);
+      lcd.setCursor(0,0);
+      lcd.print(" ");
+      lcd.setCursor(8,0);
+      lcd.print(" ");
+      lcd.setCursor(0,1);
+      lcd.print("*");
+      lcd.setCursor(8,1);
+      lcd.print(" ");
+      lcd.setCursor(3,0);
+      lcd.setCursor(3,1);
+      lcd.print(data/1000);
+    }
+    if (pipeNum == 4) {
+      digitalWrite(11, HIGH);
+      lcd.setCursor(0,0);
+      lcd.print(" ");
+      lcd.setCursor(8,0);
+      lcd.print(" ");
+      lcd.setCursor(0,1);
+      lcd.print(" ");
+      lcd.setCursor(8,1);
+      lcd.print("*");
+      lcd.setCursor(3,0);
+      lcd.setCursor(11,1);
+      lcd.print(data/1000);
+    }
+    if (pipeNum == 5) {
+      digitalWrite(12, HIGH);
+    }
   } else {
+    lcd.setCursor(0,0);
+    lcd.print(" ");
+    lcd.setCursor(8,0);
+    lcd.print(" ");
+    lcd.setCursor(0,1);
+    lcd.print(" ");
+    lcd.setCursor(8,1);
+    lcd.print(" ");
+    lcd.setCursor(3,0);
+
     digitalWrite(8, LOW);
     digitalWrite(9, LOW);
     digitalWrite(10, LOW);
@@ -65,7 +146,6 @@ void loop()
     digitalWrite(13, HIGH);
     delay(30);
     digitalWrite(13, LOW);
-    //Serial.println("No data");
   }
   delay(100);
 }
