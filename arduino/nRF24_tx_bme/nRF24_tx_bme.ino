@@ -1,21 +1,23 @@
 #include <SPI.h>
 #include <RF24.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_BMP280.h>
 
 RF24 radio(6, 7);
-Adafruit_BME280 bme;
+Adafruit_BMP280 bmx;
 
 const uint8_t pipe_in[5] = {232,205,3,145,35};
 const uint8_t pipe_out[5] = {141,205,3,145,35};
 
-bool bmeStatus = false;
+bool bmxStatus = false;
 unsigned long data = 0;
 
 void setup()
 {
-  bmeStatus = true; //bme.begin();
+  Serial.begin(9600);
+  bmxStatus = bmx.begin(0x76);
 
-  if (bmeStatus) {
+  if (bmxStatus) {
     radio.begin();
     radio.powerUp();
 
@@ -30,23 +32,22 @@ void setup()
     radio.openWritingPipe(pipe_out);   // открыть канал на отправку
     radio.openReadingPipe(1,pipe_in);
   } else {
-    pinMode(13, OUTPUT);
     while (1) {
-      digitalWrite(13, HIGH);
-      delay(300);
-      digitalWrite(13, LOW);
+      Serial.println("BME Not working");
       delay(300);
     }
   }
+  //Serial.begin(9600);*/
 }
 
 void loop()   
 {
-  if (bmeStatus) {
-    data = (unsigned long) 20; //(bme.readTemperature() * 1000);
+  if (bmxStatus) {
+    data = (unsigned long) (bmx.readTemperature() * 1000);
     if (radio.write(&data, sizeof(data))) {
     } else {
+      Serial.println("Not sent");
     }
   }
-  delay(100);
+  delay(50);
 }
