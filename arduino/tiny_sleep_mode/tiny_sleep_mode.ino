@@ -8,8 +8,8 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
-#define CYCLE 0
-#define DELAY 2000
+#define CYCLE 2
+#define DELAY 500
 #define TRIGPIN 0
 
 volatile boolean f_wdt = 1;
@@ -18,7 +18,7 @@ unsigned int iteration = 0;
 void setup() 
   {
     pinMode(TRIGPIN, OUTPUT);
-    setup_watchdog(8);// 0=16ms, 1=32ms,2=64ms,3=128ms,4=250ms,5=500ms
+    setup_watchdog(9);// 0=16ms, 1=32ms,2=64ms,3=128ms,4=250ms,5=500ms
                       // 6=1sec, 7=2 sec, 8=4 sec, 9= 8sec
   }
 
