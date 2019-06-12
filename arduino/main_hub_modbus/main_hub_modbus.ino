@@ -2,25 +2,22 @@
 #include <Wire.h>
 #include <TroykaMQ.h>
 #include <OneWire.h>
+#include <GyverFilters.h>
+#include <GyverTimer.h>
 
 #define PIN_MQ5         A3
 #define PIN_MQ5_HEATER  11
-
 #define SERIAL_PIN 5
 #define DS_PIN 10
-#define TEMP_UPDATE_TIME 1000
-
 #define PRESSURE_PIN A2
 #define RELAY_PIN 12
-
+#define QD_PIN 8
+#define PING_PIN 7
 #define GAS_FAILURE_PIN 9
-#define GAS_FAILURE_LIMIT 300
+
+#define GAS_FAILURE_LIMIT 30
 
 #define I2C_SLAVE_ADDRESS 0x18
-
-#define QD_PIN 8
-
-#define PING_PIN 7
 
 #define MY_UPTIME             0x99
 #define REGISTER_LPG          0xa0
@@ -34,14 +31,16 @@
 #define REGISTER_TARGET_STATE 0xc3
 #define REGISTER_STATE_OFF    0xd0
 #define REGISTER_STATE_AUTO   0xd1
-#define REGISTER_GH_UPTIME    0xe0
-#define REGISTER_GH_SOIL_HUM  0xe1
-#define REGISTER_GH_WAT_PRESS 0xe2
-#define REGISTER_GH_AIR_TEM   0xe3
-#define REGISTER_GH_RELAY     0xe4
-#define REGISTER_GH_DOOR      0xe5
+#define REGISTER_GH_UPTIME    0xe9
+#define REGISTER_GH_SOIL_HUM  0xe0
+#define REGISTER_GH_WAT_PRESS 0xe1
+#define REGISTER_GH_AIR_TEM   0xe2
+#define REGISTER_GH_RELAY     0xe3
+#define REGISTER_GH_DOOR      0xe4
 
 //#define DEBUG
+//#define DEBUG_I2C
+//#define DEBUG_MB
 
 #define MAX_BUFFER 64
 #define T35 35
@@ -55,12 +54,6 @@
 #define TELEGRAM_CRHI 6
 #define TELEGRAM_CRLO 7
 
-#define MODBUS_DELAY 2000
-
-#define ANALOG_DELAY 4000
-
-#define DISPLAY_DELAY 1000
-
 uint8_t au8Buffer[MAX_BUFFER];
 uint8_t address = 0x00;
 uint8_t function = 0x00;
@@ -70,6 +63,11 @@ uint8_t errCode = 0;
 MQ5 mq5(PIN_MQ5, PIN_MQ5_HEATER);
 OneWire ds(DS_PIN);
 QuadDisplay qd(QD_PIN);
+GKalman analogFilter(40, 0.5);
+GTimer_ms modbusTimer(2000);
+GTimer_ms analogTimer(4000);
+GTimer_ms displayTimer(1000);
+GTimer_ms ds18b20Timer(4000);
 
 struct DataPacket {
   unsigned long my_uptime = 0;                 // 0x99
@@ -82,12 +80,12 @@ struct DataPacket {
   unsigned long target_floor_temperature = 10; // 0xc1
   unsigned long current_floor_state = 0;       // 0xc2
   unsigned long target_floor_state = 0;        // 0xc3
-  unsigned long greenhouse_uptime = 0;         // 0xe5
-  unsigned long greenhouse_soil_hum = 0;       // 0xe5
-  unsigned long greenhouse_water_press = 0;    // 0xe5
-  unsigned long greenhouse_air_temp = 0;       // 0xe5
-  unsigned long greenhouse_relay_state = 0;    // 0xe5
-  unsigned long greenhouse_door_state = 0;     // 0xe5
+  unsigned long greenhouse_uptime = 0;         // 0xe9
+  unsigned long greenhouse_soil_hum = 0;       // 0xe0
+  unsigned long greenhouse_water_press = 0;    // 0xe1
+  unsigned long greenhouse_air_temp = 0;       // 0xe2
+  unsigned long greenhouse_relay_state = 0;    // 0xe3
+  unsigned long greenhouse_door_state = 0;     // 0xe4
 };
 
 DataPacket packet;
@@ -97,23 +95,18 @@ byte reg;
 byte req = 0;
 unsigned long to_send = 0;
 
-unsigned long dsLastUpdateTime = 0;
-
-
 // DS18B20
 void dsMesure()
 {
   ds.reset();
   ds.write(0xCC);
   ds.write(0x44, 1);
-
-  dsLastUpdateTime = millis();
 }
 
 unsigned long dsGetTemperatureRaw()
 {
   static unsigned long temperature = 0;
-  if (millis() - dsLastUpdateTime > TEMP_UPDATE_TIME)
+  if (ds18b20Timer.isReady())
   {
     ds.reset();
     ds.write(0xCC);
@@ -125,10 +118,6 @@ unsigned long dsGetTemperatureRaw()
     temperature = (data[1] << 8) | data[0];
 
     dsMesure();
-  }
-  //Wraparound
-  if (dsLastUpdateTime > millis() + 1000) {
-    dsLastUpdateTime = millis();
   }
 
   return temperature;
@@ -145,8 +134,7 @@ void setup()
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
 
-  //pinMode(PING_PIN, OUTPUT);
-  //digitalWrite(PING_PIN, LOW);
+  analogReference(INTERNAL);
 
   dsMesure();
 
@@ -159,7 +147,7 @@ void setup()
   Wire.onRequest(requestEvent);
 
   #ifdef DEBUG
-  Serial.begin(38400);
+  Serial.begin(9600);
   while (!Serial);
   #endif
 
@@ -172,12 +160,9 @@ void setup()
 void loop()
 {
   static bool device = false;
-  static uint32_t lastModbusRequest = 0;
-  static uint32_t lastAnalogRead = 0;
-  static uint32_t lastDisplayUpdate = 0;
 
   // modbus send
-  if (lastModbusRequest + MODBUS_DELAY < millis()) {
+  if (modbusTimer.isReady()) {
     uint8_t len = 0;
     if (device) {
       len = ReadInputRegisters(0x0A, 1, 2);
@@ -185,12 +170,7 @@ void loop()
       len = ReadInputRegisters(0x0B, 1, 6);
     }
     SendBuffer(len);
-    lastModbusRequest = millis();
     device = !device;
-  }
-  //Wraparound
-  if (lastModbusRequest > millis() + 1000) {
-    lastModbusRequest = millis();
   }
 
   // modbus receive
@@ -212,19 +192,14 @@ void loop()
     mq5.calibrate();
   }
 
-  if (lastAnalogRead + ANALOG_DELAY < millis()) {
+  if (analogTimer.isReady()) {
     if (mq5.isCalibrated() && mq5.heatingCompleted()) {
       packet.lpg = mq5.readLPG();
       packet.methane = mq5.readMethane();
     }
     packet.pressure = analogRead(PRESSURE_PIN);
+    packet.pressure = analogFilter.filtered(packet.pressure);
     packet.current_floor_temperature = dsGetTemperatureRaw();
-
-    lastAnalogRead = millis();
-  }
-  //Wraparound
-  if (lastAnalogRead > millis() + 1000) {
-    lastAnalogRead = millis();
   }
 
   if (packet.lpg > GAS_FAILURE_LIMIT || packet.methane > GAS_FAILURE_LIMIT) {
@@ -247,7 +222,7 @@ void loop()
     }
   }
 
-  if (lastDisplayUpdate + ANALOG_DELAY < millis()) {
+  if (displayTimer.isReady()) {
     if (millis() % 4000 < 2000) {
        qd.displayFloat((float)(packet.current_floor_temperature * 0.0625), 1);
     } else {
@@ -258,90 +233,98 @@ void loop()
       }
     }
 
-    lastDisplayUpdate = millis();
+    #ifdef DEBUG
+    Serial.print("UP ");
+    Serial.print(packet.my_uptime);
+    Serial.print(" LPG ");
+    Serial.print(packet.lpg);
+    Serial.print(" ME ");
+    Serial.print(packet.methane);
+    Serial.print(" PR ");
+    Serial.print(packet.pressure);
+    Serial.print(" UP ");
+    Serial.print(packet.well_uptime);
+    Serial.print(" WA ");
+    Serial.print(packet.water_level);
+    Serial.print(" TE ");
+    Serial.print(packet.current_floor_temperature);
+    Serial.print(" TA ");
+    Serial.print(packet.target_floor_temperature);
+    Serial.print(" ST ");
+    Serial.print(packet.current_floor_state);
+    Serial.print(" TA ");
+    Serial.print(packet.target_floor_state);
+    Serial.print(" UP ");
+    Serial.print(packet.greenhouse_uptime);
+    Serial.print(" SO ");
+    Serial.print(packet.greenhouse_soil_hum);
+    Serial.print(" PR ");
+    Serial.print(packet.greenhouse_water_press);
+    Serial.print(" TE ");
+    Serial.print(packet.greenhouse_air_temp);
+    Serial.print(" RE ");
+    Serial.print(packet.greenhouse_relay_state);
+    Serial.print(" DO ");
+    Serial.print(packet.greenhouse_door_state);
+    Serial.println();
+    #endif
   }
-  //Wraparound
-  if (lastDisplayUpdate > millis() + 1000) {
-    lastDisplayUpdate = millis();
-  }
-
-  #ifdef DEBUG
-  Serial.print(packet.lpg);
-  Serial.print(" ");
-  Serial.print(packet.methane);
-  Serial.print(" ");
-  Serial.print(packet.pressure);
-  Serial.print(" ");
-  Serial.print(packet.water_level);
-  Serial.print(" ");
-  Serial.print(packet.current_floor_temperature);
-  Serial.print(" ");
-  Serial.print(packet.target_floor_temperature);
-  Serial.print(" ");
-  Serial.print(packet.current_floor_state);
-  Serial.print(" ");
-  Serial.print(packet.target_floor_state);
-  Serial.println();
-  #endif
-
-  // todo more parameters
-  // todo update python script
-  // todo update sqlite database
-  // todo add more zabbix items
-
-  //digitalWrite(PING_PIN, HIGH);
-  //delay(20);
-  //digitalWrite(PING_PIN, LOW);
-
-  //if (millis() > 300000) resetFunc(); //вызываем reset
 }
 
 void processMessage(int n) {
   byte data = 0;
   data = Wire.read();
 
-  #ifdef DEBUG
+  #ifdef DEBUG_I2C
   Serial.print("i2c process ");
   Serial.println(data);
   #endif
 
   switch (data) {
-    case REGISTER_LPG:
-    case REGISTER_METHANE:
-    case REGISTER_PRESSURE:
-    case REGISTER_WATER_LEVEL:
-    case REGISTER_CUR_TEMP:
-    case REGISTER_TARGET_TEMP:
-    case REGISTER_CUR_STATE:
-    case REGISTER_TARGET_STATE:
+    case MY_UPTIME:             //0x99
+    case REGISTER_LPG:          //0xa0
+    case REGISTER_METHANE:      //0xa1
+    case REGISTER_PRESSURE:     //0xa2
+    case REGISTER_WELL_UPTIME:  //0xb9
+    case REGISTER_WATER_LEVEL:  //0xb0
+    case REGISTER_CUR_TEMP:     //0xc0
+    case REGISTER_TARGET_TEMP:  //0xc1
+    case REGISTER_CUR_STATE:    //0xc2
+    case REGISTER_TARGET_STATE: //0xc3
+    case REGISTER_GH_UPTIME:    //0xe9
+    case REGISTER_GH_SOIL_HUM:  //0xe0
+    case REGISTER_GH_WAT_PRESS: //0xe1
+    case REGISTER_GH_AIR_TEM:   //0xe2
+    case REGISTER_GH_RELAY:     //0xe3
+    case REGISTER_GH_DOOR:      //0xe4
       reg = data;
-      #ifdef DEBUG
+      #ifdef DEBUG_I2C
       Serial.print("Reg set ");
       Serial.println(reg);
       #endif
       break;
     case REGISTER_STATE_OFF:
       packet.target_floor_state = 0;
-      #ifdef DEBUG
+      #ifdef DEBUG_I2C
       Serial.println("State off");
       #endif
       break;
     case REGISTER_STATE_AUTO:
       packet.target_floor_state = 1;
-      #ifdef DEBUG
+      #ifdef DEBUG_I2C
       Serial.println("State on");
       #endif
       break;
     case 0xff: // exclude i2cdetect
-      #ifdef DEBUG
+      #ifdef DEBUG_I2C
       Serial.println("Skip");
       #endif
       break;
     default:
-      if (10 <= data && data <= 33) {
+      if (10 <= data && data <= 38) {
         packet.target_floor_temperature = data;
       }
-      #ifdef DEBUG
+      #ifdef DEBUG_I2C
       Serial.print("Data ");
       Serial.println(data);
       Serial.print("Temp set ");
@@ -354,7 +337,7 @@ void processMessage(int n) {
 }
 
 void requestEvent() {
-  #ifdef DEBUG
+  #ifdef DEBUG_I2C
   Serial.print("i2c request ");
   Serial.print(reg);
   Serial.print(" ");
@@ -363,6 +346,9 @@ void requestEvent() {
 
   if (req == 0) {
     switch (reg) {
+      case MY_UPTIME:
+        to_send = packet.my_uptime;
+        break;
       case REGISTER_LPG:
         to_send = packet.lpg;
         break;
@@ -371,6 +357,9 @@ void requestEvent() {
         break;
       case REGISTER_PRESSURE:
         to_send = packet.pressure;
+        break;
+      case REGISTER_WELL_UPTIME:
+        to_send = packet.well_uptime;
         break;
       case REGISTER_WATER_LEVEL:
         to_send = packet.water_level;
@@ -387,15 +376,33 @@ void requestEvent() {
       case REGISTER_TARGET_STATE:
         to_send = packet.target_floor_state;
         break;
+      case REGISTER_GH_UPTIME:
+        to_send = packet.greenhouse_uptime;
+        break;
+      case REGISTER_GH_SOIL_HUM:
+        to_send = packet.greenhouse_soil_hum;
+        break;
+      case REGISTER_GH_WAT_PRESS:
+        to_send = packet.greenhouse_water_press;
+        break;
+      case REGISTER_GH_AIR_TEM:
+        to_send = packet.greenhouse_air_temp;
+        break;
+      case REGISTER_GH_RELAY:
+        to_send = packet.greenhouse_relay_state;
+        break;
+      case REGISTER_GH_DOOR:
+        to_send = packet.greenhouse_door_state;
+        break;      
       default:
-        to_send = packet.lpg;
+        to_send = packet.my_uptime;
         break;
     }
   }
 
   byte b = 0;
 
-  #ifdef DEBUG
+  #ifdef DEBUG_I2C
   Serial.print(" ");
   Serial.println((byte)(to_send | b));
   #endif
@@ -422,12 +429,6 @@ uint8_t ReadInputRegisters(uint8_t address, uint16_t firstReg, uint16_t regNumbe
   au8Buffer[i++] = crc >> 8;
   au8Buffer[i++] = crc & 0x00ff;
 
-  /*for (uint8_t j = 0; j < i; j++) {
-    Serial.print(au8Buffer[j]);
-    Serial.print(" ");
-  }
-  Serial.println();*/
-
   return i;
 }
 
@@ -435,6 +436,13 @@ void SendBuffer(uint8_t len) {
   delay(20);
   digitalWrite(SERIAL_PIN, HIGH);
   delay(20);
+  #ifdef DEBUG_MB
+  for (uint8_t j=0; j<len;j++) {
+    Serial.print(au8Buffer[j]);
+    Serial.print(" ");
+  }
+  Serial.println();
+  #endif;
   Serial1.write(au8Buffer, len);
   delay(20);
 }
@@ -456,7 +464,7 @@ uint8_t ReceiveTelegram() {
   static uint32_t telegramStart = 0;
   static uint8_t byteCnt = 0;
 
-  if (telegramStart + T35 < millis()) {
+  if (millis() - telegramStart > T35) {
     telegramStep = TELEGRAM_ADDR;
     byteCnt = i = 0;
     errCode = 0;
@@ -465,11 +473,13 @@ uint8_t ReceiveTelegram() {
   if (Serial1.available()) {
     byte c = Serial1.read();
     telegramStart = millis();
-    /*Serial.print(c);
+    #ifdef DEBUG_MB
+    Serial.print(c);
     Serial.print(" ");
     Serial.print(byteCnt);
     Serial.print(" ");
-    Serial.println(telegramStep);/**/
+    Serial.println(telegramStep);
+    #endif
     switch(telegramStep) {
       case TELEGRAM_ADDR:
         address = au8Buffer[i++] = c;

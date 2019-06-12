@@ -132,6 +132,8 @@ void setup()
   pinMode(PING_PIN, OUTPUT);
   digitalWrite(PING_PIN, LOW);
 
+  analogReference(INTERNAL);
+
   dsMesure();
 
   qd.begin();
@@ -171,7 +173,7 @@ void loop()
   }
 
   packet.pressure = analogRead(PRESSURE_PIN);
-  if (packet.pressure < 150) {
+  if (packet.pressure < 30) {
     digitalWrite(PRESS_FAILURE_LED, HIGH);
   } else {
     digitalWrite(PRESS_FAILURE_LED, LOW);
