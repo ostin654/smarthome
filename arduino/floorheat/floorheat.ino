@@ -112,7 +112,7 @@ void setup()
   qd.displayInt(0);
 
   Wire.begin(I2C_SLAVE_ADDRESS);
-  delay(1000);
+  delay(2000);
   Wire.onReceive(processMessage);
   Wire.onRequest(requestEvent);
 
@@ -125,6 +125,8 @@ void setup()
   while (!Serial1);
 
   mq5.heaterPwrHigh();
+
+  packet.current_floor_temperature = dsGetTemperatureRaw();
 }
  
 void loop()
