@@ -2,6 +2,8 @@
 #include <GyverTimer.h>
 
 #define SERIAL_PIN 5
+#define WELL_LED A5
+#define GREENHOUSE_LED 7
 
 #define I2C_SLAVE_ADDRESS 0x20
 
@@ -40,6 +42,9 @@ uint8_t errCode = 0;
 
 GTimer_ms modbusTimer(2000);
 GTimer_ms displayTimer(2000);
+GTimer_ms wellNullTimer(10000);
+GTimer_ms greenhouseNullTimer(10000);
+
 
 struct DataPacket {
   unsigned long my_uptime = 0;                 // 0x99
@@ -64,6 +69,10 @@ void setup()
 {  
   pinMode(SERIAL_PIN, OUTPUT);
   digitalWrite(SERIAL_PIN, LOW);
+  pinMode(WELL_LED, OUTPUT);
+  digitalWrite(WELL_LED, LOW);
+  pinMode(GREENHOUSE_LED, OUTPUT);
+  digitalWrite(GREENHOUSE_LED, LOW);
 
   Wire.begin(I2C_SLAVE_ADDRESS);
   delay(1000);
@@ -95,12 +104,31 @@ void loop()
     device = !device;
   }
 
+  if (wellNullTimer.isReady()) {
+    packet.well_uptime = 0;
+    packet.water_level = 0;
+    digitalWrite(WELL_LED, LOW);
+  }
+  if (greenhouseNullTimer.isReady()) {
+    packet.greenhouse_uptime = 0;
+    packet.greenhouse_soil_hum = 0;
+    packet.greenhouse_water_press = 0;
+    packet.greenhouse_air_temp = 0;
+    packet.greenhouse_relay_state = 0;
+    packet.greenhouse_door_state = 0;
+    digitalWrite(GREENHOUSE_LED, LOW);
+  }
+
   // modbus receive
   if (WaitRespose()) {
     if (address == 0x0A) {
+      wellNullTimer.reset();
+      digitalWrite(WELL_LED, HIGH);
       packet.well_uptime = word(au8Buffer[3], au8Buffer[4]);
       packet.water_level = word(au8Buffer[5], au8Buffer[6]);
     } if (address == 0x0B) {
+      greenhouseNullTimer.reset();
+      digitalWrite(GREENHOUSE_LED, HIGH);
       packet.greenhouse_uptime = word(au8Buffer[3], au8Buffer[4]);
       packet.greenhouse_soil_hum = word(au8Buffer[5], au8Buffer[6]);
       packet.greenhouse_water_press = word(au8Buffer[7], au8Buffer[8]);
