@@ -134,7 +134,7 @@ void loop() {
     uint8_t hour = Clock.getHour(h12, PM);
     uint8_t minute = Clock.getMinute();
     uint8_t dow = Clock.getDoW();
-    if ((dow == 1 || dow == 3 || dow == 6) && hour == 21 && minute>=0 && minute<=6 /*&& waterTimer.isReady()*/) {
+    if (hour == 21 && minute>=0 && minute<=4) {
       digitalWrite(VALVE_PIN, HIGH);
       waterTimer.reset();
       relayState = 1;

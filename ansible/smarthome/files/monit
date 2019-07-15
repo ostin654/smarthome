@@ -1,8 +1,12 @@
- check process i2cgw with pidfile /var/lib/smarthome/i2cgw.pid
-   start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python -p /var/lib/smarthome/i2cgw.pid -- /var/lib/smarthome/i2cgw.py"
-   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/i2cgw.pid"
+ check process floorheat with pidfile /var/lib/smarthome/floorheat.pid
+   start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python -p /var/lib/smarthome/floorheat.pid -- /var/lib/smarthome/floorheat.py"
+   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/floorheat.pid"
    if 10 restarts with 10 cycles then timeout
  check process pressure with pidfile /var/lib/smarthome/pressure.pid
    start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python -p /var/lib/smarthome/pressure.pid -- /var/lib/smarthome/pressure.py"
    stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/pressure.pid"
+   if 10 restarts with 10 cycles then timeout
+ check process modbus with pidfile /var/lib/smarthome/modbus.pid
+   start program = "/sbin/start-stop-daemon -Sbvmx /usr/bin/python -p /var/lib/smarthome/modbus.pid -- /var/lib/smarthome/modbus.py"
+   stop  program = "/sbin/start-stop-daemon -Kvp /var/lib/smarthome/modbus.pid"
    if 10 restarts with 10 cycles then timeout

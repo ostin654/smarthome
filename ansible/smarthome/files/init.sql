@@ -5,5 +5,9 @@ CREATE INDEX IF NOT EXISTS gas_time_index ON gas(Time);
 
 CREATE TABLE IF NOT EXISTS pressure(Id INTEGER PRIMARY KEY AUTOINCREMENT, Time INTEGER, Uptime INTEGER, CurrentGasPressure REAL);
 CREATE INDEX IF NOT EXISTS pressure_time_index ON pressure(Time);
+
 CREATE TABLE IF NOT EXISTS well(Id INTEGER PRIMARY KEY AUTOINCREMENT, Time INTEGER, Uptime INTEGER, WaterLevel REAL);
 CREATE INDEX IF NOT EXISTS well_time_index ON well(Time);
+
+CREATE TABLE IF NOT EXISTS greenhouse(Id INTEGER PRIMARY KEY AUTOINCREMENT, Time INTEGER, Uptime INTEGER, SoilHumidity INTEGER, WaterPressure REAL, AirTemperature REAL, ValveState INTEGER, DoorState INTEGER);
+CREATE INDEX IF NOT EXISTS greenhouse_time_index ON greenhouse(Time);
