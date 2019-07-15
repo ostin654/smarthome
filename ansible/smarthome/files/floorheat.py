@@ -31,10 +31,8 @@ def swap32(i):
 
 
 if os.path.exists("/dev/i2c-0"):
-    print "Selected 0"
     bus = smbus.SMBus(0)
 elif os.path.exists("/dev/i2c-1"):
-    print "Selected 1"
     bus = smbus.SMBus(1)
 else:
     raise Exception("No bus /dev/i2c*")
@@ -52,10 +50,10 @@ while True:
         lpg = readLong()                               # ppm
         writeNumber(0xa1)
         methane = readLong()                           # ppm
-        writeNumber(0xa2)
-        pressure = float(readLong()) * 15 / 1023 - 1.5 # bar
-        writeNumber(0xb0)
-        water_level = float(readLong()) * 7 / 1023     # meter
+        #writeNumber(0xa2)
+        #pressure = float(readLong()) * 51.2 / 1023     # kpa
+        #writeNumber(0xb0)
+        #water_level = float(readLong()) * 7 / 1023     # meter
 
         writeNumber(0xc0)
         cur_temp = float(readLong()) / 16              # celsium
@@ -82,11 +80,11 @@ while True:
 
 
         log = open(PREFIX+"/i2cgw.log", "a")
-        log.write("%s Floor %.1f˚C => %.1f˚C (%s) Water %.2fm Gas %d/%d ppm Pressure %.2fb\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, cur_state, water_level, lpg, methane, pressure))
+        log.write("%s Floor %.1f˚C => %.1f˚C (%s) Gas %d/%d ppm\n" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), cur_temp, target_temp, cur_state, lpg, methane))
 
         historyCursor.execute("INSERT INTO floorheat VALUES (NULL, ?, ?, ?, ?, ?)", [int(time()), cur_temp, target_temp, cur_state, target_state])
-        historyCursor.execute("INSERT INTO well VALUES (NULL, ?, ?)", [int(time()), water_level])
-        historyCursor.execute("INSERT INTO gas VALUES (NULL, ?, ?, ?, ?)", [int(time()), lpg, methane, pressure])
+        #historyCursor.execute("INSERT INTO well VALUES (NULL, ?, ?)", [int(time()), water_level])
+        historyCursor.execute("INSERT INTO gas VALUES (NULL, ?, ?, ?, 0)", [int(time()), lpg, methane])
         historyConnection.commit();
 
         historyConnection.close()
