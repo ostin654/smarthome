@@ -1,5 +1,5 @@
 [pi]
-192.168.1.181 ansible_user=pi pi_family=raspberrypi
+192.168.8.100 ansible_user=pi pi_family=raspberrypi
 
 
 

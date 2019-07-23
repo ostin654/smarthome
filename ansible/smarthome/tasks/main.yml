@@ -49,12 +49,14 @@
     - g++
     - git
     - make
-    - sqlite3
     - monit
     - i2c-tools
     - tree
     - mc
     - python-smbus
+    - zabbix-agent
+    - autossh
+    
 
 - name: Install wiringpi
   apt: "name=wiringpi"
@@ -118,21 +120,6 @@
     chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinfloorheat"
 
 
-- name: Link well
-  shell: "npm link --unsafe-perm"
-  args:
-    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinwell"
-
-- name: Link modules for well
-  shell: "npm link {{item}}"
-  with_items:
-    - fs
-    - sqlite3
-    - moment
-    - fakegato-history
-  args:
-    chdir: "/home/{{ansible_env.SUDO_USER}}/smarthome/plugins/homebridge-kostinwell"
-
 
 - name: Add system user homebridge
   user: name=homebridge system=yes
@@ -159,24 +146,11 @@
 - name: make smarthome dir
   file: name=/var/lib/smarthome state=directory mode=0755 owner=root group=root
 
-- name: copy sqlite3 scripts
-  copy: src=init.sql dest=/var/lib/smarthome/init.sql mode=0644 owner=root group=root
-
-- name: Create SQL tables
-  shell: "sqlite3 /var/lib/smarthome/smarthome.db < /var/lib/smarthome/init.sql"
-
-- name: Chmod database
-  file: name=/var/lib/smarthome/smarthome.db state=file mode=0644 owner=root group=root
-
 - name: Create target state file
   file: name=/var/lib/smarthome/floorheat_target_state state=touch mode=0666 owner=root group=root
 
 - name: Create target temp file
   file: name=/var/lib/smarthome/floorheat_target_temp state=touch mode=0666 owner=root group=root
-
-- name: copy python gateway scripts
-  copy: src=i2cgw.py dest=/var/lib/smarthome/i2cgw.py mode=0644 owner=root group=root
-
 
 - name: Install python 2 modules
   pip:
@@ -194,18 +168,6 @@
       - RPIO
       - datetime
   when: pi_family is defined and pi_family=='raspberrypi'
-
-
-- name: copy monit conf
-  copy: src=monit dest=/etc/monit/conf-enabled/i2cgw
-  notify:
-    - restart monit
-
-- name: Make sure monit is running
-  systemd: state=started name=monit enabled=yes
-
-- name: copy logrotate conf
-  copy: src=logrotate dest=/etc/logrotate.d/i2cgw
 
 
 - name: Make sure homebridge is running

@@ -1,8 +1,0 @@
-/var/lib/smarthome/i2cgw.log {
-    rotate 4
-    weekly
-    minsize 1M
-    missingok
-    notifempty
-    compress
-}
