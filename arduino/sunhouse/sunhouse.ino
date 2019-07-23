@@ -2,9 +2,10 @@
 #include <Adafruit_BMP280.h>
 #include <LiquidCrystal_I2C.h>
 #include <DS3231.h>
-#include "GyverEncoder.h"
-#include "GyverTimer.h"
-#include "ModbusKostin.h"
+#include <GyverEncoder.h>
+#include <GyverTimer.h>
+#include <GyverFilters.h>
+#include <ModbusKostin.h>
 #include <SoftwareSerial.h>
 
 #if defined(ARDUINO) && ARDUINO >= 100
@@ -22,7 +23,7 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 Encoder enc1(7, 6, 5);
 GTimer_ms analogTimer;
 GTimer_ms backlightTimer;
-GTimer_ms waterTimer;
+GKalman soilFilter(500, 10, 0.1);
 SoftwareSerial mySerial(A0, A1);
 ModbusKostin modbus(0x0B, &mySerial, 2); // address, serial, expin
 DS3231 Clock;
@@ -38,7 +39,6 @@ void setup() {
   }
   analogTimer.setInterval(1000);
   backlightTimer.setInterval(9000);
-  waterTimer.setInterval(150000000);
   enc1.setType(TYPE2);
   lcd.init();
   lcd.backlight();
@@ -75,8 +75,8 @@ void loop() {
   float tempPretty;
   float pressurePretty;
   char myStr[10];
-  uint16_t relayState = 0;
-  uint16_t doorState = 0;
+  static uint16_t relayState = 0;
+  static uint16_t doorState = 0;
 
   enc1.tick();
   modbus.poll();
@@ -136,7 +136,6 @@ void loop() {
     uint8_t dow = Clock.getDoW();
     if (hour == 21 && minute>=0 && minute<=4) {
       digitalWrite(VALVE_PIN, HIGH);
-      waterTimer.reset();
       relayState = 1;
     } else {
       digitalWrite(VALVE_PIN, LOW);
@@ -163,7 +162,7 @@ void loop() {
 
     digitalWrite(SOIL_POWER, HIGH);
     delay(10);
-    soilRaw = analogRead(A3);
+    soilRaw = soilFilter.filtered(analogRead(A3));
     digitalWrite(SOIL_POWER, LOW);
     sprintf(myStr, "%04d", soilRaw);
     lcd.setCursor(0,1);

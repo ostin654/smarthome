@@ -10,7 +10,7 @@
 #define REGISTER_PRESSURE     0xa2
 
 GTimer_ms readTimer;
-GKalman myFilter(40, 40, 0.5);
+GKalman myFilter(200, 10, 0.1);
 
 struct DataPacket {
   uint32_t my_uptime = 0; // 0x99
