@@ -54,6 +54,8 @@
     - mc
     - python-smbus
     - autossh
+    - telnet
+    - memcached
 
 - include_role:
     name: zabbix-agent    
@@ -107,7 +109,7 @@
 - name: Install npm modules
   shell: "npm list -g | grep {{item}} || npm install -g {{item}} --unsafe-perm"
   with_items:
-    - sqlite3
+    - memcached
     - moment
     - fakegato-history
     - homebridge
@@ -129,7 +131,7 @@
   shell: "npm link {{item}}"
   with_items:
     - fs
-    - sqlite3
+    - memcached
     - moment
     - fakegato-history
   args:
