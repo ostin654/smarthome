@@ -1,33 +1,3 @@
-{
-  "name": "homebridge-kostinfloorheat",
-  "version": "1.0.3",
-  "description": "Kostin floor heater",
-  "main": "index.js",
-  "scripts": {},
-  "keywords": [
-    "homebridge-plugin",
-    "kostinfloorheat"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://example.com/git/kostinfloorheat.git"
-  },
-  "author": "Kostin Aleksey",
-  "license": "None",
-  "dependencies": {
-    "memcached": "^2.2.2"
-  },
-  "engines": {
-    "node": ">=0.12.0",
-    "homebridge": ">=0.2.0"
-  },
-  "bugs": {
-    "url": "https://example.com/"
-  },
-  "homepage": "https://example.com/"
-}
-root@raspberrypi:/home/pi/smarthome/plugins/homebridge-kostinfloorheat# cat index.js 
-
 var Service, Characteristic, HomebridgeAPI, FakeGatoHistoryService, timeout;
  
 module.exports = function (homebridge) {
