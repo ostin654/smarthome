@@ -15,7 +15,7 @@
   "author": "Kostin Aleksey",
   "license": "None",
   "dependencies": {
-    "sqlite3": "^4.0.4"
+    "memcached": "^2.2.2"
   },
   "engines": {
     "node": ">=0.12.0",

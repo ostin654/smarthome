@@ -1,3 +1,32 @@
+{
+  "name": "homebridge-kostinfloorheat",
+  "version": "1.0.3",
+  "description": "Kostin floor heater",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [
+    "homebridge-plugin",
+    "kostinfloorheat"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/git/kostinfloorheat.git"
+  },
+  "author": "Kostin Aleksey",
+  "license": "None",
+  "dependencies": {
+    "memcached": "^2.2.2"
+  },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  },
+  "bugs": {
+    "url": "https://example.com/"
+  },
+  "homepage": "https://example.com/"
+}
+root@raspberrypi:/home/pi/smarthome/plugins/homebridge-kostinfloorheat# cat index.js 
 
 var Service, Characteristic, HomebridgeAPI, FakeGatoHistoryService, timeout;
  
@@ -8,24 +37,13 @@ module.exports = function (homebridge) {
   homebridge.registerAccessory("homebridge-kostinfloorheat", "KostinFloorHeat", KostinFloorHeat);
 };
 
-const fs = require('fs');
-const sqlite3 = require('sqlite3').verbose();
 const moment = require('moment');
+const memcached = require('memcached');
 
 function KostinFloorHeat(log, config) {
   this.log = log;
 
-  this.database = typeof config["database"]  !== 'undefined' ? config["database"] : '/var/lib/smarthome/floorheat.db';
-  this.table = typeof config["table"]  !== 'undefined' ? config["table"] : 'history';
-
-  this.target_state_file = typeof config["target_state_file"]  !== 'undefined' ? config["target_state_file"] : '/var/lib/smarthome/floorheat_target_state';
-  this.target_temp_file = typeof config["target_temp_file"]  !== 'undefined' ? config["target_temp_file"] : '/var/lib/smarthome/floorheat_target_temp';
-
-  this.db = new sqlite3.Database(this.database, (err) => {
-    if (err) {
-      return this.log(err.message);
-    }
-  });
+  this.memcached = new memcached('127.0.0.1:11211');
 
   this.loggingService = new FakeGatoHistoryService("thermo", this);
   timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
@@ -71,11 +89,11 @@ KostinFloorHeat.prototype = {
   updateHistory: function() {
     this.log('Updating history');
 
-    this.db.get("select avg(CurrentTemperature) as currentTemp, avg(TargetTemperature) as setTemp, case when CurrentState='HEAT' then 100 else 0 end as valvePosition from "+this.table+" where Time > (julianday('now') - 2440587.5) * 86400.0 - 600", [], (err, row) => {
+    this.getLastData((err, data) => {
       if (err) {
         return this.log(err.message);
       }
-      this.loggingService.addEntry({time: moment().unix(), currentTemp:row.currentTemp.toFixed(2), setTemp:row.setTemp.toFixed(2), valvePosition:row.valvePosition});
+      this.loggingService.addEntry({time: moment().unix(), currentTemp:data.currentTemp.toFixed(2), setTemp:data.setTemp.toFixed(2), valvePosition:data.valvePosition});
     });
 
     timeout = setTimeout(this.updateHistory.bind(this), 10 * 60 * 1000);
@@ -83,15 +101,15 @@ KostinFloorHeat.prototype = {
 
   getLastData: function(next) {
     this.log('Getting last data');
-    this.db.get('select * from '+this.table+' order by Time desc limit 1', [], next);
+    this.memcached.getMulti(['currentTemp', 'targetTemp', 'currentState', 'targetState', 'valvePosition'], next);
   },
 
   getCurrentState: function (next) {
-    this.getLastData((err, row) => {
+    this.getLastData((err, data) => {
       if (err) {
         return next(err);
       }
-      switch (row.CurrentState) {
+      switch (date.currentState) {
         case 'OFF':
           return next(null, Characteristic.CurrentHeatingCoolingState.OFF);
           break;
@@ -107,20 +125,23 @@ KostinFloorHeat.prototype = {
 
   setTargetState: function (state, next) {
     this.log('Setting target state');
+    var setState;
     if (state == Characteristic.TargetHeatingCoolingState.AUTO) {
-      fs.writeFileSync(this.target_state_file, "on");
+      setState = 'on';
     } else {
-      fs.writeFileSync(this.target_state_file, "off");
+      setState = 'off';
     }
-    return next();
+    this.memcached.set('setState', setState, 3600, (err) => {
+      return next(err);
+    });
   },
 
   getTargetState: function (next) {
-    this.getLastData((err, row) => {
+    this.getLastData((err, data) => {
       if (err) {
         return next(err);
       }
-      switch (row.TargetState) {
+      switch (data.targetState) {
         case 'OFF':
           return next(null, Characteristic.TargetHeatingCoolingState.OFF);
           break;
@@ -138,26 +159,27 @@ KostinFloorHeat.prototype = {
   },
 
   getCurrentTemperature: function (next) {
-    this.getLastData((err, row) => {
+    this.getLastData((err, data) => {
       if (err) {
         return next(err);
       }
-      return next(null, row.CurrentTemperature.toFixed(1));
+      return next(null, data.currentTemp.toFixed(1));
     });
   },
 
   setTargetTemperature: function (target, next) {
     this.log('Setting target temperature');
-    fs.writeFileSync(this.target_temp_file, target.toString());
-    return next();
+    memcached.set('setTemp', target, 3600, (err) => {
+      return next(err);
+    });
   },
 
   getTargetTemperature: function (next) {
-    this.getLastData((err, row) => {
+    this.getLastData((err, data) => {
       if (err) {
         return next(err);
       }
-      return next(null, row.TargetTemperature.toFixed(1));
+      return next(null, data.targetTemp.toFixed(1));
     });
   },
 
