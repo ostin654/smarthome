@@ -38,7 +38,6 @@
     timeout: 300
   when: i2c_on.changed or uart_on.changed
 
-
 - name: Install a list of packages
   apt: "name={{ packages }}"
   vars:
@@ -54,13 +53,30 @@
     - tree
     - mc
     - python-smbus
-    - zabbix-agent
     - autossh
-    
+
+- include_role:
+    name: zabbix-agent    
 
 - name: Install wiringpi
   apt: "name=wiringpi"
   when: pi_family is defined and pi_family=='raspberrypi'
+
+
+- name: Recursively change ownership of a directory
+  file:
+    path: /var/lib/smarthome
+    state: directory
+    recurse: yes
+    owner: root
+    group: root
+    
+- name: Copy zabbix script
+  copy:
+    src: zabbix_send.py
+    dest: /var/lib/smarthome/zabbix_send.py
+    owner: root
+    group: root
 
 
 - name: Add Nodesource apt key.

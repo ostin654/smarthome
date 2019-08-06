@@ -2,7 +2,6 @@
 
 import smbus
 import struct
-import sqlite3
 from time import time
 from time import sleep
 import sys
