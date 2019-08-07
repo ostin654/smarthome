@@ -80,6 +80,10 @@
     owner: root
     group: root
 
+- name: Install zabbix_send crontab
+  copy:
+    content: "*/3 * * * * root python /var/lib/smarthome/zabbix_send.py >> /var/lib/smarthome/zabbix_send.log 2>&1\n"
+    dest: /etc/cron.d/smarthome
 
 - name: Add Nodesource apt key.
   apt_key:
@@ -164,18 +168,13 @@
 - name: make smarthome dir
   file: name=/var/lib/smarthome state=directory mode=0755 owner=root group=root
 
-- name: Create target state file
-  file: name=/var/lib/smarthome/floorheat_target_state state=touch mode=0666 owner=root group=root
-
-- name: Create target temp file
-  file: name=/var/lib/smarthome/floorheat_target_temp state=touch mode=0666 owner=root group=root
-
 - name: Install python 2 modules
   pip:
     name:
       - GPIO
       - RPIO
       - datetime
+      - pymemcache
   when: pi_family is defined and pi_family=='raspberrypi'
 
 - name: Install python 3 modules
@@ -185,6 +184,7 @@
       - GPIO
       - RPIO
       - datetime
+      - pymemcache
   when: pi_family is defined and pi_family=='raspberrypi'
 
 

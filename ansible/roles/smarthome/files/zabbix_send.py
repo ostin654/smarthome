@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 import signal
 import os
+from pymemcache.client import base
 
 
 def writeNumber(address, value):
@@ -36,6 +37,9 @@ elif os.path.exists("/dev/i2c-1"):
 else:
     raise Exception("No bus /dev/i2c*")
 
+
+client = base.Client(('localhost', 11211))
+
 try:
     writeNumber(0x19, 0x99)
     writeNumber(0x19, 0x99)
@@ -43,7 +47,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.pressure.uptime -o %d" % (uptime)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x19, 0x99"
     pass
 
 try:
@@ -53,7 +57,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.pressure.current_pressure -o %f" % (pressure)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x19, 0xa2"
     pass
 
 
@@ -64,7 +68,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.well.uptime -o %d" % (well_uptime)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xb9"
     pass
 
 try:
@@ -74,7 +78,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.well.water_level -o %f" % (water_level)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xb0"
     pass
 
 try:
@@ -94,7 +98,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.soil_hum -o %d" % (soil_hum)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xe0"
     pass
 
 try:
@@ -104,7 +108,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.water_press -o %f" % (water_pressure)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xe1"
     pass
 
 try:
@@ -114,7 +118,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.air_temp -o %f" % (air_temp)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xe2"
     pass
 
 try:
@@ -124,7 +128,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.valve_state -o %d" % (valve_state)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xe3"
     pass
 
 try:
@@ -134,7 +138,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.door_state -o %d" % (door_state)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x20, 0xe4"
     pass
 
 
@@ -145,7 +149,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.gas.current_lpg_level -o %d" % (lpg)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x18, 0xa0"
     pass
 
 try:
@@ -155,7 +159,7 @@ try:
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.gas.current_methane_level -o %d" % (methane)).read()
     print res
 except IOError:
-    print "IOError"
+    print "IOError 0x18, 0xa1"
     pass
 
 try:
@@ -164,8 +168,9 @@ try:
     cur_temp = float(readLong(0x18)) / 16 # C
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.floorheat.current_temp -o %f" % (cur_temp)).read()
     print res
+    client.set('currentTemp', cur_temp, 300)
 except IOError:
-    print "IOError"
+    print "IOError 0x18, 0xc0"
     pass
 
 try:
@@ -174,8 +179,54 @@ try:
     target_temp = readLong(0x18) # C
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.floorheat.target_temp -o %d" % (target_temp)).read()
     print res
+    client.set('targetTemp', cur_temp, 300)
 except IOError:
-    print "IOError"
+    print "IOError 0x18, 0xc1"
     pass
 
 
+try:
+    writeNumber(0x18, 0xc2)
+    writeNumber(0x18, 0xc2)
+    currentState = 'HEAT' if readLong(0x18)>0 else 'COOL'
+    valvePosition = 100 if currentState=='HEAT' else 0
+    client.set('currentState', currentState, 300)
+    client.set('valvePosition', valvePosition, 300)
+except IOError:
+    print "IOError 0x18, 0xc2"
+    pass
+
+
+try:
+    writeNumber(0x18, 0xc3)
+    writeNumber(0x18, 0xc3)
+    targetState = 'AUTO' if readLong(0x18)>0 else 'OFF'
+    client.set('targetState', targetState, 300)
+except IOError:
+    print "IOError 0x18, 0xc3"
+    pass
+
+        
+try:
+    setState = client.get('setState')
+    client.delete('setState')
+    if setState is not None:
+        if setState == 'on':
+            writeNumber(0x18, 0xd1)
+            writeNumber(0x18, 0xd1)
+        else:
+            writeNumber(0x18, 0xd0)
+            writeNumber(0x18, 0xd0)
+except IOError:
+    print "IOError 0x18, 0xd1"
+    pass
+
+try:
+    setTemp = client.get('setTemp')
+    client.delete('setTemp')
+    if setTemp is not None:
+        writeNumber(0x18, int(setTemp))
+        writeNumber(0x18, int(setTemp))
+except IOError:
+    print "IOError 0x18"
+    pass
