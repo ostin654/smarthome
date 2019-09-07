@@ -3,8 +3,12 @@
 #include <RF24.h>
 #include <LiquidCrystal_I2C.h>
 
+//#define LCD_ENABLE
+
 RF24 radio(6, 7);
+#ifdef LCD_ENABLE
 LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+#endif
 
 const uint8_t pipe_out[5] = {232,205,3,145,35};
 const uint8_t pipe_in1[5] = {141,205,3,145,35};
@@ -38,7 +42,7 @@ void setup()
   radio.setCRCLength(RF24_CRC_16); // длинна контрольной суммы 8-bit or 16-bit
   radio.setPALevel(RF24_PA_MAX); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
                                  // соответствует уровням:    -18dBm,      -12dBm,      -6dBM,           0dBm
-  radio.setChannel(58);         // уствновка канала
+  radio.setChannel(90);         // уствновка канала
   radio.setRetries(15, 15);
   radio.setAutoAck(true);
 
@@ -52,6 +56,7 @@ void setup()
   //radio.printDetails();
   radio.startListening(); // приём
 
+  #ifdef LCD_ENABLE
   lcd.init();
   lcd.backlight();
   lcd.setCursor(1,0);
@@ -62,6 +67,7 @@ void setup()
   lcd.print("3:----");
   lcd.setCursor(9,1);
   lcd.print("4:----");
+  #endif
 }
 
 void loop()  
@@ -71,6 +77,7 @@ void loop()
 
     if (pipeNum == 1) {
       digitalWrite(8, HIGH);
+      #ifdef LCD_ENABLE
       lcd.setCursor(0,0);
       lcd.print("*");
       lcd.setCursor(8,0);
@@ -81,9 +88,11 @@ void loop()
       lcd.print(" ");
       lcd.setCursor(3,0);
       lcd.print(data/1000);
+      #endif
     }
     if (pipeNum == 2) {
       digitalWrite(9, HIGH);
+      #ifdef LCD_ENABLE
       lcd.setCursor(0,0);
       lcd.print(" ");
       lcd.setCursor(8,0);
@@ -95,9 +104,11 @@ void loop()
       lcd.setCursor(3,0);
       lcd.setCursor(11,0);
       lcd.print(data/1000);
+      #endif
     }
     if (pipeNum == 3) {
       digitalWrite(10, HIGH);
+      #ifdef LCD_ENABLE
       lcd.setCursor(0,0);
       lcd.print(" ");
       lcd.setCursor(8,0);
@@ -109,9 +120,11 @@ void loop()
       lcd.setCursor(3,0);
       lcd.setCursor(3,1);
       lcd.print(data/1000);
+      #endif
     }
     if (pipeNum == 4) {
       digitalWrite(11, HIGH);
+      #ifdef LCD_ENABLE
       lcd.setCursor(0,0);
       lcd.print(" ");
       lcd.setCursor(8,0);
@@ -123,11 +136,13 @@ void loop()
       lcd.setCursor(3,0);
       lcd.setCursor(11,1);
       lcd.print(data/1000);
+      #endif
     }
     if (pipeNum == 5) {
       digitalWrite(12, HIGH);
     }
   } else {
+    #ifdef LCD_ENABLE
     lcd.setCursor(0,0);
     lcd.print(" ");
     lcd.setCursor(8,0);
@@ -137,6 +152,7 @@ void loop()
     lcd.setCursor(8,1);
     lcd.print(" ");
     lcd.setCursor(3,0);
+    #endif
 
     digitalWrite(8, LOW);
     digitalWrite(9, LOW);

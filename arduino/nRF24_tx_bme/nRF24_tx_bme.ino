@@ -3,8 +3,12 @@
 #include <Adafruit_BME280.h>
 #include <Adafruit_BMP280.h>
 
+#define BMP_ENABLE
+
 RF24 radio(6, 7);
+#ifdef BMP_ENABLE
 Adafruit_BMP280 bmx;
+#endif
 
 const uint8_t pipe_in[5] = {232,205,3,145,35};
 const uint8_t pipe_out[5] = {141,205,3,145,35};
@@ -15,7 +19,11 @@ unsigned long data = 0;
 void setup()
 {
   Serial.begin(9600);
+  #ifdef BMP_ENABLE
   bmxStatus = bmx.begin(0x76);
+  #else
+  bmxStatus = true;
+  #endif
 
   if (bmxStatus) {
     radio.begin();
@@ -25,7 +33,7 @@ void setup()
     radio.setCRCLength(RF24_CRC_16); // длинна контрольной суммы 8-bit or 16-bit
     radio.setPALevel(RF24_PA_MAX); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
                                  // соответствует уровням:    -18dBm,      -12dBm,      -6dBM,           0dBm
-    radio.setChannel(58);         // установка канала
+    radio.setChannel(90);         // установка канала
     radio.setRetries(15, 15);
     radio.setAutoAck(true);
 
@@ -37,13 +45,16 @@ void setup()
       delay(300);
     }
   }
-  //Serial.begin(9600);*/
 }
 
 void loop()   
 {
   if (bmxStatus) {
+    #ifdef BMP_ENABLE
     data = (unsigned long) (bmx.readTemperature() * 1000);
+    #else
+    data = (unsigned long) (millis() % 10000);
+    #endif
     if (radio.write(&data, sizeof(data))) {
     } else {
       Serial.println("Not sent");
