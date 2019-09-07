@@ -17,7 +17,8 @@ if [ "$_IP" ]; then
   printf "My IP address is %s\n" "$_IP"
 fi
 
-autossh -M 20000 -N -f -i /root/.ssh/id_rsa -R 2000:localhost:22 <user1>@<server1>
-autossh -M 22000 -N -f -i /root/.ssh/id_rsa -R 2000:localhost:22 <user2>@<server2>
+autossh -M 20000 -N -f -i /root/.ssh/id_rsa -R 2222:localhost:22 <user1>@<server1>
+autossh -M 22000 -N -f -i /root/.ssh/id_rsa -R 10052:localhost:10050 <user1>@<server1>
+autossh -M 22200 -N -f -i /root/.ssh/id_rsa -R 22322:localhost:11211 <user1>@<server1>
 
 exit 0
