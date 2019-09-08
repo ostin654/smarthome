@@ -118,7 +118,11 @@ void loop()
       if (packet.target_floor_temperature < 10) {
         packet.target_floor_temperature = 10;
       }
+      qd.displayDigits(QD_NONE, QD_S, QD_E, QD_t);
+      delay(1000);
     } else {
+      qd.displayDigits(QD_NONE, QD_E, QD_r, QD_r);
+      delay(1000);
       #ifdef DEBUG
       Serial.println("Problem JSON");
       #endif
