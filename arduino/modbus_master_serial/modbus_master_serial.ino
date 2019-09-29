@@ -1,15 +1,16 @@
 #include <GyverTimer.h>
 #include <SoftwareSerial.h>
+#include <QuadDisplay2.h>
 
 #define SERIAL_PIN 5
-#define WELL_LED A5
-#define GREENHOUSE_LED 7
 #define RX A2
 #define TX A3
+#define QD_PIN 10
 
 //#define DEBUG
 #define DEBUG_SERIAL
 //#define DEBUG_MB
+//#define QD_TEST
 
 #define MAX_BUFFER 64
 #define T35 35
@@ -34,17 +35,20 @@ GTimer_ms displayTimer(1000);
 GTimer_ms wellNullTimer(10000);
 GTimer_ms greenhouseNullTimer(10000);
 SoftwareSerial softSerial(RX, TX);
+QuadDisplay qd(QD_PIN);
+
+const static uint8_t numerals[] = { QD_0, QD_1, QD_2, QD_3, QD_4, QD_5, QD_6, QD_7, QD_8, QD_9 };
 
 struct DataPacket {
-  unsigned long my_uptime = 0;                 // 0x99
-  unsigned long well_uptime = 0;               // 0xb9
-  unsigned long water_level = 0;               // 0xb0
-  unsigned long greenhouse_uptime = 0;         // 0xe9
-  unsigned long greenhouse_soil_hum = 0;       // 0xe0
-  unsigned long greenhouse_water_press = 0;    // 0xe1
-  unsigned long greenhouse_air_temp = 0;       // 0xe2
-  unsigned long greenhouse_relay_state = 0;    // 0xe3
-  unsigned long greenhouse_door_state = 0;     // 0xe4
+  long my_uptime = -1;                 // 0x99
+  long well_uptime = -1;               // 0xb9
+  long water_level = -1;               // 0xb0
+  long greenhouse_uptime = -1;         // 0xe9
+  long greenhouse_soil_hum = -1;       // 0xe0
+  long greenhouse_water_press = -1;    // 0xe1
+  long greenhouse_air_temp = -100000;  // 0xe2
+  long greenhouse_relay_state = -1;    // 0xe3
+  long greenhouse_door_state = -1;     // 0xe4
 };
 
 DataPacket packet;
@@ -53,10 +57,9 @@ void setup()
 {  
   pinMode(SERIAL_PIN, OUTPUT);
   digitalWrite(SERIAL_PIN, LOW);
-  pinMode(WELL_LED, OUTPUT);
-  digitalWrite(WELL_LED, LOW);
-  pinMode(GREENHOUSE_LED, OUTPUT);
-  digitalWrite(GREENHOUSE_LED, LOW);
+
+  qd.begin();
+  qd.displayInt(0);
 
   #ifdef DEBUG
   Serial.begin(9600);
@@ -88,30 +91,26 @@ void loop()
   }
 
   if (wellNullTimer.isReady()) {
-    packet.well_uptime = 0;
-    packet.water_level = 0;
-    digitalWrite(WELL_LED, LOW);
+    packet.well_uptime = -1;
+    packet.water_level = -1;
   }
   if (greenhouseNullTimer.isReady()) {
-    packet.greenhouse_uptime = 0;
-    packet.greenhouse_soil_hum = 0;
-    packet.greenhouse_water_press = 0;
-    packet.greenhouse_air_temp = 0;
-    packet.greenhouse_relay_state = 0;
-    packet.greenhouse_door_state = 0;
-    digitalWrite(GREENHOUSE_LED, LOW);
+    packet.greenhouse_uptime = -1;
+    packet.greenhouse_soil_hum = -1;
+    packet.greenhouse_water_press = -1;
+    packet.greenhouse_air_temp = -100000;
+    packet.greenhouse_relay_state = -1;
+    packet.greenhouse_door_state = -1;
   }
 
   // modbus receive
   if (WaitRespose()) {
     if (address == 0x0A) {
       wellNullTimer.reset();
-      digitalWrite(WELL_LED, HIGH);
       packet.well_uptime = word(au8Buffer[3], au8Buffer[4]);
       packet.water_level = word(au8Buffer[5], au8Buffer[6]);
     } if (address == 0x0B) {
       greenhouseNullTimer.reset();
-      digitalWrite(GREENHOUSE_LED, HIGH);
       packet.greenhouse_uptime = word(au8Buffer[3], au8Buffer[4]);
       packet.greenhouse_soil_hum = word(au8Buffer[5], au8Buffer[6]);
       packet.greenhouse_water_press = word(au8Buffer[7], au8Buffer[8]);
@@ -119,10 +118,85 @@ void loop()
       packet.greenhouse_relay_state = word(au8Buffer[11], au8Buffer[12]);
       packet.greenhouse_door_state = word(au8Buffer[13], au8Buffer[14]);
     }
+  } else {
+    #ifdef QD_TEST
+    packet.water_level = 287;
+    packet.greenhouse_soil_hum = 698;
+    packet.greenhouse_water_press = 255;
+    packet.greenhouse_air_temp = 31000;
+    packet.greenhouse_relay_state = 1;
+    packet.greenhouse_door_state = 0;
+    #endif
   }
 
 
   if (displayTimer.isReady()) {
+
+    if (millis() % 10000 < 2000) {
+      if (packet.water_level >= 0) {
+        qd.displayFloat((float)(packet.water_level * 7.0 / 1023.0), 2);
+      } else {
+        qd.displayDigits(QD_NONE, QD_MINUS, QD_MINUS & QD_DOT, QD_MINUS);
+      }
+    } else if (millis() % 10000 < 4000) {
+      if (packet.greenhouse_air_temp > -100000) {
+        qd.displayTemperatureC((packet.greenhouse_air_temp / 1000), true);
+      } else {
+        qd.displayDigits(QD_MINUS, QD_MINUS, QD_DEGREE, QD_C);
+      }
+    } else if (millis() % 10000 < 6000) {
+      if (packet.greenhouse_soil_hum >= 0) {
+        qd.displayInt(packet.greenhouse_soil_hum, true);
+      } else {
+        qd.displayDigits(QD_MINUS, QD_MINUS, QD_MINUS, QD_MINUS);
+      }
+    } else if (millis() % 10000 < 8000) {
+      if (packet.greenhouse_water_press >= 0) {
+        int pressure = packet.greenhouse_water_press * 1.4662757 - 150;
+        #ifdef DEBUG
+        Serial.println(pressure);
+        #endif
+        uint8_t digits[3] = { 0xff, 0xff, 0xff };
+        digits[2] = pressure % 10;
+        pressure /= 10;
+        #ifdef DEBUG
+        Serial.println(pressure);
+        #endif
+        digits[1] = pressure % 10;
+        pressure /= 10;
+        #ifdef DEBUG
+        Serial.println(pressure);
+        #endif
+        digits[0] = pressure % 10;
+        
+        #ifdef DEBUG
+        Serial.println(digits[0]);
+        Serial.println(digits[1]);
+        Serial.println(digits[2]);
+        #endif
+
+        qd.displayDigits(numerals[digits[0]], numerals[digits[1]] & QD_DOT, numerals[digits[2]], QD_b);
+      } else {
+        qd.displayDigits(QD_MINUS, QD_MINUS & QD_DOT, QD_MINUS, QD_b);
+      }
+    } else {
+      uint8_t door = QD_MINUS;
+      if (packet.greenhouse_door_state == 0) {
+        door = QD_0;
+      }
+      if (packet.greenhouse_door_state > 0) {
+        door = QD_1;
+      }
+      uint8_t valve = QD_MINUS;
+      if (packet.greenhouse_relay_state == 0) {
+        valve = QD_0;
+      }
+      if (packet.greenhouse_relay_state > 0) {
+        valve = QD_1;
+      }
+      qd.displayDigits(QD_d, door , QD_U, valve); 
+    }
+
     packet.my_uptime = millis()/60000;
 
     #ifdef DEBUG
