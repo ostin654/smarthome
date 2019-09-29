@@ -15,11 +15,11 @@ GTimer_ms ledTimer2;
 GTimer_ms ledTimer3;
 GTimer_ms ledTimer4;
 #ifdef LCD_ENABLE
-GTimer_ms lсdTimer1;
-GTimer_ms lсdTimer2;
-GTimer_ms lсdTimer3;
-GTimer_ms lсdTimer4;
-#endif;
+GTimer_ms lcdTimer1;
+GTimer_ms lcdTimer2;
+GTimer_ms lcdTimer3;
+GTimer_ms lcdTimer4;
+#endif
 
 const uint8_t pipe_out[5] = {232,205,3,145,35};
 const uint8_t pipe_in1[5] = {141,205,3,145,35};
@@ -46,7 +46,7 @@ void setup()
 
   radio.setDataRate(RF24_250KBPS); // скорость обмена данными RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
   radio.setCRCLength(RF24_CRC_16); // длинна контрольной суммы 8-bit or 16-bit
-  radio.setPALevel(RF24_PA_MAX); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
+  radio.setPALevel(RF24_PA_MIN); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
                                  // соответствует уровням:    -18dBm,      -12dBm,      -6dBM,           0dBm
   radio.setChannel(90);         // уствновка канала
   radio.setRetries(15, 15);

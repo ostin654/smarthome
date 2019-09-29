@@ -5,7 +5,8 @@
 #include <avr/sleep.h>
 #include <avr/wdt.h>
 
-#define BMP_ENABLE
+//#define BMP_ENABLE
+//#define MCU_SLEEP
 #define RADIO_SLEEP
 #define DELAY 2
 
@@ -34,7 +35,6 @@ void setup()
 
   if (bmxStatus) {
     radio.begin();
-    radio.stopListening();
 
     radio.setDataRate(RF24_250KBPS); // скорость обмена данными RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
     radio.setCRCLength(RF24_CRC_16); // длинна контрольной суммы 8-bit or 16-bit
@@ -45,7 +45,8 @@ void setup()
     radio.setAutoAck(true);
 
     radio.openWritingPipe(pipe_out);   // открыть канал на отправку
-    radio.openReadingPipe(1,pipe_in);
+    radio.stopListening();
+    //radio.openReadingPipe(1,pipe_in);
 
     #ifdef BMP_ENABLE
     bmx.setSampling(Adafruit_BMP280::MODE_NORMAL,
@@ -86,7 +87,11 @@ void loop()
     delay(20);
     #endif
   }
+  #ifdef MCU_SLEEP
   goToSleep();
+  #else
+  delay(300);
+  #endif
 }
 
 // watchdog interrupt
@@ -95,6 +100,7 @@ ISR (WDT_vect)
   wdt_disable(); // disable watchdog
 }
  
+#ifdef MCU_SLEEP
 void goToSleep ()
 {
   // disable ADC
@@ -122,3 +128,4 @@ void goToSleep ()
   // cancel sleep as a precaution
   sleep_disable();
 }
+#endif
