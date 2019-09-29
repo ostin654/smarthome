@@ -3,14 +3,18 @@
 #include <OneWire.h>
 #include <GyverTimer.h>
 #include <ArduinoJson.h>
+#include <Encoder.h>
 
-#define PIN_MQ5         A3
-#define PIN_MQ5_HEATER  11
-#define DS_PIN 10
-#define RELAY_PIN 12
+#define PIN_MQ5         A0
+#define PIN_MQ5_HEATER  13
+#define DS_PIN 7
+#define RELAY_PIN 4
 #define QD_PIN 8
 #define GAS_FAILURE_PIN 9
 #define GAS_FAILURE_LIMIT 100
+#define ENCODER_PIN_A 6
+#define ENCODER_PIN_B 3
+#define BUZZER_PIN 2
 
 //#define DEBUG
 #define DEBUG_SERIAL1
@@ -19,8 +23,10 @@ StaticJsonBuffer<200> jb;
 MQ5 mq5(PIN_MQ5, PIN_MQ5_HEATER);
 OneWire ds(DS_PIN);
 QuadDisplay qd(QD_PIN);
+Encoder myEnc(ENCODER_PIN_A, ENCODER_PIN_B);
 GTimer_ms analogTimer(4000);
 GTimer_ms displayTimer(1000);
+GTimer_ms setTimer(5000);
 GTimer_ms ds18b20Timer(4000);
 
 struct DataPacket {
@@ -34,6 +40,8 @@ struct DataPacket {
 };
 
 DataPacket packet;
+
+long oldPosition = 0;
 
 // DS18B20
 void dsMesure()
@@ -75,6 +83,9 @@ void setup()
 
   qd.begin();
   qd.displayInt(0);
+
+  myEnc.write(packet.target_floor_temperature * 4);
+  setTimer.setMode(MANUAL);     // ручной режим
 
   #ifdef DEBUG
   Serial.begin(9600);
@@ -118,17 +129,53 @@ void loop()
       if (packet.target_floor_temperature < 10) {
         packet.target_floor_temperature = 10;
       }
+
+      myEnc.write(packet.target_floor_temperature * 4);
+      setTimer.reset();
+      
       qd.displayDigits(QD_NONE, QD_S, QD_E, QD_t);
+      #ifdef DEBUG
+      Serial.println("JSON Ok!");
+      #endif
       delay(1000);
     } else {
       qd.displayDigits(QD_NONE, QD_E, QD_r, QD_r);
       delay(1000);
       #ifdef DEBUG
-      Serial.println("Problem JSON");
+      Serial.println("Problem JSON...");
       #endif
     }
+    jb.clear();
   }
   #endif
+
+  long newPosition = myEnc.read();
+  if (newPosition != oldPosition) {
+    oldPosition = newPosition;
+    if (newPosition % 4 == 0) {
+      tone(BUZZER_PIN, 300);
+      delay(10);
+      noTone(BUZZER_PIN);
+      packet.target_floor_temperature = newPosition / 4;
+      packet.target_floor_state = 1;
+      qd.displayInt(packet.target_floor_temperature);
+      setTimer.reset();
+    }
+  }
+  if (newPosition > 38 * 4) {
+    myEnc.write(38 * 4);
+    newPosition = 38 * 4;
+    tone(BUZZER_PIN, 2000);
+    delay(10);
+    noTone(BUZZER_PIN);
+  }
+  if (newPosition < 10 * 4) {
+    myEnc.write(10 * 4);
+    newPosition = 10 * 4;
+    tone(BUZZER_PIN, 2000);
+    delay(10);
+    noTone(BUZZER_PIN);
+  }
 
   if (analogTimer.isReady()) {
     if (mq5.isCalibrated() && mq5.heatingCompleted()) {
@@ -159,7 +206,7 @@ void loop()
     }
   }
 
-  if (displayTimer.isReady()) {
+  if (displayTimer.isReady() && setTimer.isReady()) {
     if (millis() % 4000 < 2000) {
        qd.displayFloat((float)(packet.current_floor_temperature * 0.0625), 1);
     } else {
