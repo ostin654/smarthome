@@ -4,20 +4,22 @@
 #include <GyverTimer.h>
 #include <ArduinoJson.h>
 #include <Encoder.h>
+#include <EEPROM.h>
 
-#define PIN_MQ5         A0
-#define PIN_MQ5_HEATER  13
-#define DS_PIN 7
-#define RELAY_PIN 4
-#define QD_PIN 8
-#define GAS_FAILURE_PIN 9
+#define PIN_MQ5         A3
+#define PIN_MQ5_HEATER  11
+#define DS_PIN 3
+#define RELAY_PIN A2
+#define QD_PIN 10
+#define GAS_FAILURE_PIN 8
 #define GAS_FAILURE_LIMIT 100
-#define ENCODER_PIN_A 6
-#define ENCODER_PIN_B 3
-#define BUZZER_PIN 2
+#define ENCODER_PIN_A 2
+#define ENCODER_PIN_B 7
 
 //#define DEBUG
 #define DEBUG_SERIAL1
+
+#define EEPROM_ADDRESS 0
 
 StaticJsonBuffer<200> jb;
 MQ5 mq5(PIN_MQ5, PIN_MQ5_HEATER);
@@ -41,36 +43,6 @@ struct DataPacket {
 
 DataPacket packet;
 
-long oldPosition = 0;
-
-// DS18B20
-void dsMesure()
-{
-  ds.reset();
-  ds.write(0xCC);
-  ds.write(0x44, 1);
-}
-
-unsigned long dsGetTemperatureRaw()
-{
-  static unsigned long temperature = 0;
-  if (ds18b20Timer.isReady())
-  {
-    ds.reset();
-    ds.write(0xCC);
-    ds.write(0xBE);
-
-    byte data[2];
-    data[0] = ds.read();
-    data[1] = ds.read();
-    temperature = (data[1] << 8) | data[0];
-
-    dsMesure();
-  }
-
-  return temperature;
-}
-
 void setup()
 {  
   pinMode(GAS_FAILURE_PIN, OUTPUT);
@@ -79,10 +51,20 @@ void setup()
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
 
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
+
   dsMesure();
 
   qd.begin();
   qd.displayInt(0);
+
+  EEPROM.get(EEPROM_ADDRESS, packet.target_floor_temperature);
+  EEPROM.get(EEPROM_ADDRESS + sizeof(packet.target_floor_temperature), packet.current_floor_state);
+
+  if (packet.target_floor_temperature > 38) packet.target_floor_temperature = 38;
+  if (packet.target_floor_temperature < 10) packet.target_floor_temperature = 10;
+  packet.current_floor_state = packet.current_floor_state ? 1 : 0;
 
   myEnc.write(packet.target_floor_temperature * 4);
   setTimer.setMode(MANUAL);     // ручной режим
@@ -149,13 +131,11 @@ void loop()
   }
   #endif
 
+  static long oldPosition = 0;
   long newPosition = myEnc.read();
   if (newPosition != oldPosition) {
     oldPosition = newPosition;
     if (newPosition % 4 == 0) {
-      tone(BUZZER_PIN, 300);
-      delay(10);
-      noTone(BUZZER_PIN);
       packet.target_floor_temperature = newPosition / 4;
       packet.target_floor_state = 1;
       qd.displayInt(packet.target_floor_temperature);
@@ -165,16 +145,10 @@ void loop()
   if (newPosition > 38 * 4) {
     myEnc.write(38 * 4);
     newPosition = 38 * 4;
-    tone(BUZZER_PIN, 2000);
-    delay(10);
-    noTone(BUZZER_PIN);
   }
   if (newPosition < 10 * 4) {
     myEnc.write(10 * 4);
     newPosition = 10 * 4;
-    tone(BUZZER_PIN, 2000);
-    delay(10);
-    noTone(BUZZER_PIN);
   }
 
   if (analogTimer.isReady()) {
@@ -204,6 +178,8 @@ void loop()
         packet.current_floor_state = 0;
       }
     }
+    EEPROM.put(EEPROM_ADDRESS, packet.target_floor_temperature);
+    EEPROM.put(EEPROM_ADDRESS + sizeof(packet.target_floor_temperature), packet.current_floor_state);
   }
 
   if (displayTimer.isReady() && setTimer.isReady()) {
@@ -255,4 +231,32 @@ void loop()
     Serial1.println(" }");
     #endif
   }
+}
+
+// DS18B20
+void dsMesure()
+{
+  ds.reset();
+  ds.write(0xCC);
+  ds.write(0x44, 1);
+}
+
+unsigned long dsGetTemperatureRaw()
+{
+  static unsigned long temperature = 0;
+  if (ds18b20Timer.isReady())
+  {
+    ds.reset();
+    ds.write(0xCC);
+    ds.write(0xBE);
+
+    byte data[2];
+    data[0] = ds.read();
+    data[1] = ds.read();
+    temperature = (data[1] << 8) | data[0];
+
+    dsMesure();
+  }
+
+  return temperature;
 }
