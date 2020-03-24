@@ -7,7 +7,7 @@
 #define SERIAL_TX 0
 #define DIR_PIN 1
 
-#define ADDRESS 0x0A
+#define ADDRESS 0x0C
 
 GTimer_ms analogTimer(1000);
 GKalman analogFilter(40, 0.5);
@@ -16,11 +16,21 @@ ModbusKostin modbus(ADDRESS, &softSerial, DIR_PIN);
 
 void setup()
 {
+  /*
+  softSerial.begin(38400);
+  pinMode(DIR_PIN, OUTPUT);
+  digitalWrite(DIR_PIN, HIGH);
+  /**/
   modbus.begin(38400);
   modbus.setRegisterLimits(1, 2);
+  /**/
 }
 
 void loop() {
+  /*
+  softSerial.println("Hello");
+  delay(500);
+  /**/
   modbus.poll();
 
   if (analogTimer.isReady()) {
@@ -32,4 +42,5 @@ void loop() {
     modbus.setRegisterValue(1, millis() / 60000);
     modbus.setRegisterValue(2, analogValue);
   }
+  /**/
 }

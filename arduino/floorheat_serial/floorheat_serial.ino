@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <Encoder.h>
 #include <EEPROM.h>
+//#include <RH_ASK.h>
 
 #define PIN_MQ5         A3
 #define PIN_MQ5_HEATER  11
@@ -15,6 +16,7 @@
 #define GAS_FAILURE_LIMIT 100
 #define ENCODER_PIN_A 2
 #define ENCODER_PIN_B 7
+//#define RF_PIN 6
 
 //#define DEBUG
 #define DEBUG_SERIAL1
@@ -28,8 +30,10 @@ QuadDisplay qd(QD_PIN);
 Encoder myEnc(ENCODER_PIN_A, ENCODER_PIN_B);
 GTimer_ms analogTimer(4000);
 GTimer_ms displayTimer(1000);
+//GTimer_ms nullTimer(50000);
 GTimer_ms setTimer(5000);
 GTimer_ms ds18b20Timer(4000);
+//RH_ASK driver(2000, RF_PIN, 0, 0);
 
 struct DataPacket {
   unsigned long my_uptime = 0;                 // 0x99
@@ -39,6 +43,7 @@ struct DataPacket {
   unsigned long target_floor_temperature = 10; // 0xc1
   unsigned long current_floor_state = 0;       // 0xc2
   unsigned long target_floor_state = 0;        // 0xc3
+  //long current_room_temperature = -1;        // 0xc4
 };
 
 DataPacket packet;
@@ -51,8 +56,8 @@ void setup()
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
 
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
 
   dsMesure();
 
@@ -79,6 +84,8 @@ void setup()
   while (!Serial1);
   Serial1.setTimeout(1000);
   #endif
+
+  //driver.init();
 
   mq5.heaterPwrHigh();
   mq5.calibrate(0.5);
@@ -151,6 +158,36 @@ void loop()
     newPosition = 10 * 4;
   }
 
+  /*
+  uint8_t buf[4];
+  uint8_t buflen = sizeof(buf);
+  uint8_t address = 0;
+  uint32_t temperature = 0;
+  if (driver.recv(buf, 4)) {
+    #ifdef DEBUG
+    Serial.print(buf[1], HEX);
+    Serial.print(" ");
+    Serial.print(buf[2], HEX);
+    Serial.print(" ");
+    Serial.println(buf[3], HEX);
+    #endif
+    
+    address = buf[1];
+    if (address == 0x4D) {
+      temperature = buf[3];
+      temperature <<=8;
+      temperature |= buf[2];
+
+      packet.current_room_temperature = temperature;
+      nullTimer.reset();
+    }
+  }
+
+  if (nullTimer.isReady()) {
+    packet.current_room_temperature = -1;
+  }
+  /**/
+
   if (analogTimer.isReady()) {
     if (mq5.isCalibrated() && mq5.heatingCompleted()) {
       packet.lpg = mq5.readLPG();
@@ -202,6 +239,8 @@ void loop()
     Serial.print(packet.methane);
     Serial.print(" TE ");
     Serial.print(packet.current_floor_temperature);
+    //Serial.print(" RT ");
+    //Serial.print(packet.current_room_temperature);
     Serial.print(" TT ");
     Serial.print(packet.target_floor_temperature);
     Serial.print(" ST ");
@@ -228,6 +267,8 @@ void loop()
     Serial1.print(packet.current_floor_state);
     Serial1.print(", \"target_state\": ");
     Serial1.print(packet.target_floor_state);
+    //Serial1.print(", \"room_temp\": ");
+    //Serial1.print(packet.current_room_temperature);
     Serial1.println(" }");
     #endif
   }
