@@ -24,7 +24,7 @@ def sendToZabbix(decoded_packet):
 socket.setdefaulttimeout(10)
 
 port_serial = serial.Serial(
-    port='/dev/ttyUSB1',
+    port='/dev/ttyUSB0',
     baudrate = 9600,
     parity=serial.PARITY_NONE,
     stopbits=serial.STOPBITS_ONE,

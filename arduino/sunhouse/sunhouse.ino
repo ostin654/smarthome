@@ -1,5 +1,5 @@
 #include <Wire.h>
-#include <Adafruit_BMP280.h>
+#include "Adafruit_BMP280.h"
 #include <LiquidCrystal_I2C.h>
 #include <DS3231.h>
 #include <GyverEncoder.h>
@@ -33,10 +33,17 @@ bool h12;
 bool PM;
 
 void setup() {
-  analogReadResolution(10);
+  //analogReadResolution(10);
   if (!bmp.begin(0x76)) {
     while (1);
   }
+
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+                  Adafruit_BMP280::SAMPLING_X2,
+                  Adafruit_BMP280::SAMPLING_NONE,
+                  Adafruit_BMP280::FILTER_X2,
+                  Adafruit_BMP280::STANDBY_MS_1000);
+
   analogTimer.setInterval(1000);
   backlightTimer.setInterval(9000);
   enc1.setType(TYPE2);
@@ -71,7 +78,7 @@ void updateTime() {
 void loop() {
   uint16_t pressureRaw;
   uint16_t soilRaw;
-  uint16_t tempRaw;
+  int16_t tempRaw;
   float tempPretty;
   float pressurePretty;
   char myStr[10];
@@ -143,16 +150,16 @@ void loop() {
     }
 
     // door
-    tempRaw = 1000 * bmp.readTemperature();
-    if (tempRaw > 30000) {
+    tempRaw = 100 * bmp.readTemperature();
+    if (tempRaw > 3000) {
       digitalWrite(DOOR_PIN, HIGH);
       doorState = 1;
     }
-    if (tempRaw < 25000) {
+    if (tempRaw < 2500) {
       digitalWrite(DOOR_PIN, LOW);
       doorState = 0;
     }
-    tempPretty = tempRaw / 1000.0;
+    tempPretty = tempRaw / 100.0;
     dtostrf(tempPretty, 2, 1, myStr);
   
     lcd.setCursor(10,0);
@@ -176,7 +183,7 @@ void loop() {
     lcd.setCursor(8,1);
     lcd.print("PR ");
     lcd.print(myStr);
-    lcd.print("b");
+    lcd.print("b ");
 
     modbus.setRegisterValue(1, millis() / 60000);
     modbus.setRegisterValue(2, soilRaw);

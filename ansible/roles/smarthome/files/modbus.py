@@ -24,7 +24,7 @@ def sendToZabbix(decoded_packet):
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.uptime -o %d" % (decoded_packet["greenhouse_uptime"])).read()
     print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
 
-    res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.air_temp -o %f" % (float(decoded_packet["greenhouse_air_temp"]) / 1000)).read()
+    res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.air_temp -o %f" % (float(decoded_packet["greenhouse_air_temp"]) / 100)).read()
     print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
 
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.soil_hum -o %d" % (decoded_packet["greenhouse_soil_hum"])).read()
@@ -37,6 +37,15 @@ def sendToZabbix(decoded_packet):
     print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
 
     res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.greenhouse.door_state -o %d" % (decoded_packet["greenhouse_door_state"])).read()
+    print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
+
+    res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.gastank.uptime -o %d" % (decoded_packet["gastank_uptime"])).read()
+    print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
+
+    res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.gastank.gas_level -o %f" % (100.0 * float(decoded_packet["gastank_level"]) / 1023)).read()
+    print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
+
+    res = os.popen("zabbix_sender -z s.smarthome.net.ru -p 10051 -s raspberrypi -k smarthome.room.current_temp -o %f" % (float(decoded_packet["room_temp"]) / 100)).read()
     print "%s -- %s" % (datetime.now().strftime("%A, %d. %B %Y %H:%M:%S"), re.sub("\s+", ' ', res))
 
 socket.setdefaulttimeout(10)

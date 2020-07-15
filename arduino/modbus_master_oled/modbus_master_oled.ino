@@ -1,16 +1,21 @@
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
 #include <GyverTimer.h>
 #include <SoftwareSerial.h>
-#include <QuadDisplay2.h>
 
-#define SERIAL_PIN 5
-#define RX A2
-#define TX A3
-#define QD_PIN 10
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
-//#define DEBUG
+#define SERIAL_PIN 7
+#define RX 9
+#define TX 8
+
 #define DEBUG_SERIAL
 //#define DEBUG_MB
-//#define QD_TEST
+//#define OLED_TEST
 
 #define DEVICE_COUNT 4
 #define MAX_BUFFER 64
@@ -39,9 +44,8 @@ GTimer_ms greenhouseNullTimer(30000);
 GTimer_ms gastankNullTimer(30000);
 GTimer_ms roomNullTimer(90000);
 SoftwareSerial softSerial(RX, TX);
-QuadDisplay qd(QD_PIN);
-
-const static uint8_t numerals[] = { QD_0, QD_1, QD_2, QD_3, QD_4, QD_5, QD_6, QD_7, QD_8, QD_9 };
+#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 struct DataPacket {
   long my_uptime = -1;                 // 0x99
@@ -66,22 +70,19 @@ void setup()
   pinMode(SERIAL_PIN, OUTPUT);
   digitalWrite(SERIAL_PIN, LOW);
 
-  delay(1000);
-
-  qd.begin();
-  qd.displayInt(0);
-
-  #if defined(DEBUG) || defined(DEBUG_MB)
-  Serial.begin(9600);
-  while (!Serial);
-  #endif
+  Serial.begin(38400);
 
   #ifdef DEBUG_SERIAL
   softSerial.begin(9600);
   #endif
 
-  Serial1.begin(38400);
-  while (!Serial1);
+  delay(1000);
+
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
 }
  
 void loop()
@@ -129,6 +130,16 @@ void loop()
     device = device % DEVICE_COUNT;
   }
 
+  #ifdef OLED_TEST
+  packet.water_level = 287;
+  packet.greenhouse_soil_hum = 698;
+  packet.greenhouse_water_press = 255;
+  packet.greenhouse_air_temp = 3100;
+  packet.greenhouse_relay_state = 1;
+  packet.greenhouse_door_state = 0;
+  packet.gastank_level = 466;
+  packet.room_temperature = 2378;
+  #else
   // modbus receive
   if (WaitRespose()) {
     if (address == 0x0A) {
@@ -158,122 +169,86 @@ void loop()
     else {
       Serial.println(address, HEX);
     }
-  } else {
-    #ifdef QD_TEST
-    packet.water_level = 287;
-    packet.greenhouse_soil_hum = 698;
-    packet.greenhouse_water_press = 255;
-    packet.greenhouse_air_temp = 3100;
-    packet.greenhouse_relay_state = 1;
-    packet.greenhouse_door_state = 0;
-    packet.gastank_level = 466;
-    #endif
   }
+  #endif
 
   if (displayTimer.isReady()) {
+    display.clearDisplay();
+    display.setTextSize(1);      // Normal 1:1 pixel scale
+    display.setTextColor(SSD1306_WHITE); // Draw white text
+    display.setCursor(0, 0);     // Start at top-left corner
+    display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-    if (millis() % 14274 < 2379) {
-      if (packet.water_level >= 0) {
-        qd.displayFloat((float)(packet.water_level * 7.0 / 1023.0), 2);
-      } else {
-        qd.displayDigits(QD_NONE, QD_MINUS, QD_MINUS & QD_DOT, QD_MINUS);
-      }
-    } else if (millis() % 14274 < 2379*2) {
-      if (packet.greenhouse_air_temp > -10000) {
-        qd.displayTemperatureC((packet.greenhouse_air_temp / 100), true);
-      } else {
-        qd.displayDigits(QD_MINUS, QD_MINUS, QD_DEGREE, QD_C);
-      }
-    } else if (millis() % 14274 < 2379*3) {
-      if (packet.greenhouse_soil_hum >= 0) {
-        qd.displayInt(packet.greenhouse_soil_hum, true);
-      } else {
-        qd.displayDigits(QD_MINUS, QD_MINUS, QD_MINUS, QD_MINUS);
-      }
-    } else if (millis() % 14274 < 2379*4) {
-      if (packet.greenhouse_water_press >= 103) {
-        int pressure = packet.greenhouse_water_press * 1.4662757 - 150;
-
-        #ifdef DEBUG
-        Serial.println(pressure);
-        #endif
-        uint8_t digits[3] = { 0xff, 0xff, 0xff };
-        digits[2] = pressure % 10;
-        pressure /= 10;
-        #ifdef DEBUG
-        Serial.println(pressure);
-        #endif
-        digits[1] = pressure % 10;
-        pressure /= 10;
-        #ifdef DEBUG
-        Serial.println(pressure);
-        #endif
-        digits[0] = pressure % 10;
-        
-        #ifdef DEBUG
-        Serial.print("Digit 0 ");
-        Serial.println(digits[0]);
-        Serial.print("Digit 1 ");
-        Serial.println(digits[1]);
-        Serial.print("Digit 2 ");
-        Serial.println(digits[2]);
-        #endif
-
-        qd.displayDigits(numerals[digits[0]], numerals[digits[1]] & QD_DOT, numerals[digits[2]], QD_b);
-      } else {
-        qd.displayDigits(QD_MINUS, QD_MINUS & QD_DOT, QD_MINUS, QD_b);
-      }
-    } else if (millis() % 14274 < 2379*5) {
-      uint8_t door = QD_MINUS;
-      if (packet.greenhouse_door_state == 0) {
-        door = QD_0;
-      }
-      if (packet.greenhouse_door_state > 0) {
-        door = QD_1;
-      }
-      uint8_t valve = QD_MINUS;
-      if (packet.greenhouse_relay_state == 0) {
-        valve = QD_0;
-      }
-      if (packet.greenhouse_relay_state > 0) {
-        valve = QD_1;
-      }
-      qd.displayDigits(QD_d, door , QD_U, valve); 
+    display.print("Water: ");
+    if (packet.water_level >= 0) {
+      display.print((float)(packet.water_level * 7.0 / 1023.0));
     } else {
-      if (packet.gastank_level >= 0) {
-        qd.displayHumidity(packet.gastank_level * 100 / 1023);
-      } else {
-        qd.displayDigits(QD_MINUS, QD_MINUS, QD_DEGREE, QD_UNDER_DEGREE);
-      }
+      display.print("-.--");
+    }
+    display.print("m ");
+
+    display.print("Gas: ");
+    if (packet.gastank_level >= 0) {
+      display.print(packet.gastank_level * 100 / 1023);
+    } else {
+      display.print("--");
+    }
+    display.print("%");
+    display.println("");
+
+    display.print("Room: ");
+    if (packet.room_temperature > -10000) {
+      display.print(packet.room_temperature / 100);
+    } else {
+      display.print("--");
+    }
+    display.write(248);
+    display.print("C");
+    display.println("");
+
+    display.print("Sunhouse: ");
+    if (packet.greenhouse_air_temp > -10000) {
+      display.print(packet.greenhouse_air_temp / 100);
+    } else {
+      display.print("--");
+    }
+    display.write(248);
+    display.print("C ");
+
+    if (packet.greenhouse_soil_hum >= 0) {
+      display.print(packet.greenhouse_soil_hum);
+    } else {
+      display.print("----");
     }
 
-    packet.my_uptime = millis()/60000;
+    display.println("");
 
-    #ifdef DEBUG
-    Serial.print("UP ");
-    Serial.print(packet.my_uptime);
-    Serial.print(" WU ");
-    Serial.print(packet.well_uptime);
-    Serial.print(" WA ");
-    Serial.print(packet.water_level);
-    Serial.print(" UP ");
-    Serial.print(packet.greenhouse_uptime);
-    Serial.print(" SO ");
-    Serial.print(packet.greenhouse_soil_hum);
-    Serial.print(" PR ");
-    Serial.print(packet.greenhouse_water_press);
-    Serial.print(" TE ");
-    Serial.print(packet.greenhouse_air_temp);
-    Serial.print(" RE ");
-    Serial.print(packet.greenhouse_relay_state);
-    Serial.print(" DO ");
-    Serial.print(packet.greenhouse_door_state);
-    Serial.print(" GA ");
-    Serial.print(packet.gastank_level);
-    Serial.print(" RT ");
-    Serial.print(packet.room_temperature);
-    Serial.println();
-    #endif
+    if (packet.greenhouse_soil_hum >= 103) {
+      display.print((float)(packet.greenhouse_water_press * 1.4662757 - 150));
+    } else {
+      display.print("-.--");
+    }
+    display.print("b ");
+
+    if (packet.greenhouse_door_state == 0) {
+      display.print("D0");
+    } else if (packet.greenhouse_door_state == 1) {
+      display.print("D1");
+    } else {
+      display.print("D-");
+    }
+    if (packet.greenhouse_relay_state == 0) {
+      display.print("V0");
+    } else if (packet.greenhouse_relay_state == 1) {
+      display.print("V1");
+    } else {
+      display.print("V-");
+    }
+
+    display.println("");
+    display.display();
+
+    packet.my_uptime = millis()/60000;
 
     #ifdef DEBUG_SERIAL
     softSerial.print("{ \"uptime\": ");
@@ -303,7 +278,6 @@ void loop()
     softSerial.println(" }");
     #endif
   }
-  /**/
 }
 
 
@@ -329,21 +303,23 @@ uint8_t ReadInputRegisters(uint8_t address, uint16_t firstReg, uint16_t regNumbe
 void SendBuffer(uint8_t len) {
   delay(20);
   digitalWrite(SERIAL_PIN, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
   delay(20);
   #ifdef DEBUG_MB
   for (uint8_t j=0; j<len;j++) {
-    Serial.print(au8Buffer[j], HEX);
-    Serial.print(" ");
+    softSerial.print(au8Buffer[j], HEX);
+    softSerial.print(" ");
   }
-  Serial.println();
+  softSerial.println();
   #endif;
-  Serial1.write(au8Buffer, len);
+  Serial.write(au8Buffer, len);
   delay(20);
 }
 
 bool WaitRespose() {
   uint8_t len;
   digitalWrite(SERIAL_PIN, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   len = ReceiveTelegram();
   if (len > 0 && errCode == 0) {
     return true;
@@ -364,23 +340,23 @@ uint8_t ReceiveTelegram() {
     errCode = 0;
   }
 
-  if (Serial1.available()) {
-    byte c = Serial1.read();
+  if (Serial.available()) {
+    byte c = Serial.read();
     telegramStart = millis();
     #ifdef DEBUG_MB
-    Serial.print(c, HEX);
-    Serial.print(" ");
-    Serial.print(byteCnt);
-    Serial.print(" ");
-    Serial.println(telegramStep);
+    softSerial.print(c, HEX);
+    softSerial.print(" ");
+    softSerial.print(byteCnt);
+    softSerial.print(" ");
+    softSerial.println(telegramStep);
     #endif
     switch(telegramStep) {
       case TELEGRAM_ADDR:
         address = au8Buffer[i++] = c;
         telegramStep = TELEGRAM_FUNC;
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_ADDR ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_ADDR ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -388,8 +364,8 @@ uint8_t ReceiveTelegram() {
         function = au8Buffer[i++] = c;
         telegramStep = TELEGRAM_BYTE;
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_FUNC ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_FUNC ");
+        softSerial.println(c, HEX);
         #endif
         if (function >= 0x80) {
           telegramStep = TELEGRAM_ERRO;
@@ -400,8 +376,8 @@ uint8_t ReceiveTelegram() {
         errCode = au8Buffer[i++] = c;
         telegramStep = TELEGRAM_CRHI;
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_ERRO ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_ERRO ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -413,8 +389,8 @@ uint8_t ReceiveTelegram() {
           telegramStep = TELEGRAM_BYHI;
         }
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_BYTE ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_BYTE ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -427,8 +403,8 @@ uint8_t ReceiveTelegram() {
           telegramStep = TELEGRAM_BYLO;
         }
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_BYHI ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_BYHI ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -441,8 +417,8 @@ uint8_t ReceiveTelegram() {
           telegramStep = TELEGRAM_BYHI;
         }
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_BYLO ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_BYLO ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -450,8 +426,8 @@ uint8_t ReceiveTelegram() {
         au8Buffer[i+1] = c;
         telegramStep = TELEGRAM_CRLO;
         #ifdef DEBUG_MB
-        Serial.print("TELEGRAM_CRHI ");
-        Serial.println(c, HEX);
+        softSerial.print("TELEGRAM_CRHI ");
+        softSerial.println(c, HEX);
         #endif
         return 0;
         break;
@@ -460,8 +436,8 @@ uint8_t ReceiveTelegram() {
           au8Buffer[i+2] = c;
           telegramStep = TELEGRAM_ADDR;
           #ifdef DEBUG_MB
-          Serial.print("TELEGRAM_CRLO ");
-          Serial.println(c, HEX);
+          softSerial.print("TELEGRAM_CRLO ");
+          softSerial.println(c, HEX);
           #endif
 
           uint8_t len = i;
@@ -472,9 +448,9 @@ uint8_t ReceiveTelegram() {
           crc |= au8Buffer[len+2];
           if (crc != CalculateCRC(len)) {
             #ifdef DEBUG_MB
-            Serial.print(" WRONG CRC ");
-            Serial.print(word(au8Buffer[len+1], au8Buffer[len+2]), DEC);
-            Serial.print(CalculateCRC(len), DEC);
+            softSerial.print(" WRONG CRC ");
+            softSerial.print(word(au8Buffer[len+1], au8Buffer[len+2]), DEC);
+            softSerial.print(CalculateCRC(len), DEC);
             #endif;
             return 0;
           }
