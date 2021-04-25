@@ -1,10 +1,11 @@
+//#define MODBUS_DEBUG
+
 #include <Wire.h>
 #include "Adafruit_BMP280.h"
 #include <LiquidCrystal_I2C.h>
 #include <DS3231.h>
 #include <GyverEncoder.h>
 #include <GyverTimer.h>
-#include <GyverFilters.h>
 #include <ModbusKostin.h>
 #include <SoftwareSerial.h>
 
@@ -14,7 +15,6 @@
 #define printByte(args)  print(args,BYTE);
 #endif
 
-#define SOIL_POWER 3
 #define DOOR_PIN 8
 #define VALVE_PIN 9
 
@@ -23,7 +23,6 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 Encoder enc1(7, 6, 5);
 GTimer_ms analogTimer;
 GTimer_ms backlightTimer;
-GKalman soilFilter(500, 10, 0.1);
 SoftwareSerial mySerial(A0, A1);
 ModbusKostin modbus(0x0B, &mySerial, 2); // address, serial, expin
 DS3231 Clock;
@@ -32,8 +31,9 @@ bool Century;
 bool h12;
 bool PM;
 
+char myStr[20];
+
 void setup() {
-  //analogReadResolution(10);
   if (!bmp.begin(0x76)) {
     while (1);
   }
@@ -51,37 +51,29 @@ void setup() {
   lcd.backlight();
 
   modbus.begin(38400);
-  modbus.setRegisterLimits(1, 6);
-  modbus.setRegisterValue(1, 0);
-  modbus.setRegisterValue(2, 0);
-  modbus.setRegisterValue(3, 0);
-  modbus.setRegisterValue(4, 0);
-  modbus.setRegisterValue(5, 0);
-  modbus.setRegisterValue(6, 0);
+  modbus.setInputRegisterLimits(1, 4);
+  modbus.setOutputRegisterLimits(1, 3);
+  modbus.setInputRegisterValue(1, 0);
+  modbus.setInputRegisterValue(2, 0);
+  modbus.setInputRegisterValue(3, 0);
+  modbus.setInputRegisterValue(4, 0);
+  modbus.setCallbackFunc(setTimeFromModbus);
 
   pinMode(VALVE_PIN, OUTPUT); // valve
   digitalWrite(VALVE_PIN, LOW);
   pinMode(DOOR_PIN, OUTPUT); // door
   digitalWrite(DOOR_PIN, LOW);
-  pinMode(SOIL_POWER, OUTPUT); // soil power
-  digitalWrite(SOIL_POWER, LOW);
 }
 
 void updateTime() {
-  char myStr[10];
-
-  sprintf(myStr, "%02d:%02d D%d", Clock.getHour(h12, PM), Clock.getMinute(), Clock.getDoW());
+  sprintf(myStr, "%02d:%02d:%02d", Clock.getHour(h12, PM), Clock.getMinute(), Clock.getSecond());
   lcd.setCursor(0,0);
   lcd.print(myStr);
 }
 
 void loop() {
-  uint16_t pressureRaw;
-  uint16_t soilRaw;
   int16_t tempRaw;
   float tempPretty;
-  float pressurePretty;
-  char myStr[10];
   static uint16_t relayState = 0;
   static uint16_t doorState = 0;
 
@@ -137,11 +129,13 @@ void loop() {
   if (analogTimer.isReady()) {
     updateTime();
 
-    // valve
+    // time
     uint8_t hour = Clock.getHour(h12, PM);
     uint8_t minute = Clock.getMinute();
-    uint8_t dow = Clock.getDoW();
-    if (hour == 21 && minute>=0 && minute<=4) {
+    uint8_t second = Clock.getSecond();
+
+    // valve
+    if (hour == 21 && minute<=4) {
       digitalWrite(VALVE_PIN, HIGH);
       relayState = 1;
     } else {
@@ -167,29 +161,25 @@ void loop() {
     lcd.printByte(0xdf); // degree sign
     lcd.print("C"); // celsium
 
-    digitalWrite(SOIL_POWER, HIGH);
-    delay(10);
-    soilRaw = soilFilter.filtered(analogRead(A3));
-    digitalWrite(SOIL_POWER, LOW);
-    sprintf(myStr, "%04d", soilRaw);
-    lcd.setCursor(0,1);
-    lcd.print("SO ");
-    lcd.print(myStr);
-  
-    pressureRaw = analogRead(A2);
-    pressurePretty = 0.0146628*pressureRaw-1.5;
-    dtostrf(pressurePretty, 3, 1, myStr);
-  
-    lcd.setCursor(8,1);
-    lcd.print("PR ");
-    lcd.print(myStr);
-    lcd.print("b ");
+    uint16_t uptime = millis() / 60000;
 
-    modbus.setRegisterValue(1, millis() / 60000);
-    modbus.setRegisterValue(2, soilRaw);
-    modbus.setRegisterValue(3, pressureRaw);
-    modbus.setRegisterValue(4, tempRaw);
-    modbus.setRegisterValue(5, relayState);
-    modbus.setRegisterValue(6, doorState);
+    sprintf(myStr, "%02X V%dD%d UP%d", modbus.getAddress(), relayState, doorState, uptime);
+    lcd.setCursor(0,1);
+    lcd.print(myStr);
+    
+    modbus.setInputRegisterValue(1, uptime);
+    modbus.setInputRegisterValue(2, tempRaw);
+    modbus.setInputRegisterValue(3, relayState);
+    modbus.setInputRegisterValue(4, doorState);
+  }
+}
+
+void setTimeFromModbus(uint16_t registerNumber, uint16_t value) {
+  if (registerNumber == 1) {
+    Clock.setHour(value%24);
+  } else if (registerNumber == 2) {
+    Clock.setMinute(value%60);
+  } else if (registerNumber == 3) {
+    Clock.setSecond(value%60);
   }
 }
