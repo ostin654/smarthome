@@ -1,0 +1,48 @@
+# -*- coding: utf-8 -*-
+
+from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+import telebot
+
+usbPort = '/dev/ttyUSB0'
+deviceAddress = 0x10
+registerNumber = 1
+
+bot = telebot.TeleBot('{{ lookup('ini', 'bot_token section=telegram file=secrets.ini') }}')
+keyboard1 = telebot.types.ReplyKeyboardMarkup()
+keyboard1.row('set 10', 'set 15', 'set 19')
+keyboard1.row('set 23', 'set 25', 'set 27')
+keyboard1.row('set 30', 'set 33', 'set 35')
+
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    bot.send_message(message.chat.id, 'Привет, ты написал мне /start, используй быстрые клавиши', reply_markup=keyboard1)
+
+@bot.message_handler(content_types=['text'])
+def send_text(message):
+    if int(message.chat.id) == {{ lookup('ini', 'admin_id section=telegram file=secrets.ini') }}:
+        if message.text[:4].lower() == 'set ':
+            bot.send_message(message.chat.id, 'Установка температуры...')
+            temperature = int(message.text[4:]);
+            if temperature > 38 or temperature < 5:
+                bot.send_message(message.chat.id, 'Неверное значение')
+            else:
+                client = ModbusClient(method='rtu', port=usbPort, timeout=0.3, baudrate=38400)
+                client.connect()
+
+                for i in range(5):
+                    response = client.write_register(registerNumber, temperature, unit=deviceAddress)
+
+                    if response.isError():
+                        bot.send_message(message.chat.id, "Ошибка")
+                        time.sleep(3)
+                    else:
+                        bot.send_message(message.chat.id, "Установлено %d˚C" % (temperature))
+                        break
+
+                client.close()
+        else:
+            bot.send_message(message.chat.id, 'Не понимаю, пиши /start')
+    else:
+        bot.send_message(message.chat.id, 'Нет доступа');
+
+bot.polling()

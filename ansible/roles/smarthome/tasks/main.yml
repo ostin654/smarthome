@@ -1,16 +1,13 @@
 ---
-# tasks file for smarthome
-
-- name: Upgrade packages
-  apt: upgrade=dist update_cache=yes
 
 - name: configure WIFI
-  copy: src=wpa_supplicant.conf dest=/etc/wpa_supplicant/wpa_supplicant.conf
+  template:
+    src: 'wpa_supplicant.conf.j2'
+    dest: "/etc/wpa_supplicant/wpa_supplicant.conf"
 
 - name: Install a list of packages
-  apt: "name={{ packages }}"
-  vars:
-    packages:
+  apt:
+    name:
     - libavahi-compat-libdnssd-dev
     - python-pip
     - python3-pip
@@ -20,19 +17,44 @@
     - monit
     - tree
     - mc
-    - autossh
     - telnet
-    - memcached
 
-- include_role:
-    name: zabbix-agent    
+- name: Install python modules for communication
+  pip:
+    name:
+    - 'pyTelegramBotAPI==3.6.6'
+    - 'pymodbus==2.5.1'
+
+- name: configure crontab
+  copy:
+    src: 'crontab'
+    dest: '/etc/cron.d/smarthome'
+
+- name: configure logrotate
+  copy:
+    src: 'logrotate'
+    dest: '/etc/logrotate.d/smarthome'
+
+- name: configure monit
+  copy:
+    src: 'monit.conf'
+    dest: '/etc/monit/conf-enabled/telegram_bot.conf'
+  notify: restart monit
+
+- name: copy script modbus
+  copy:
+    src: 'modbus2.py'
+    dest: '/var/lib/smarthome/modbus2.py'
+
+- name: copy script telegram bot
+  template:
+    src: 'telegram_bot.py.j2'
+    dest: "/var/lib/smarthome/telegram_bot.py"
 
 - name: Recursively change ownership of a directory
   file:
-    path: /var/lib/smarthome
+    path: '/var/lib/smarthome'
     state: directory
     recurse: yes
     owner: root
     group: root
-    
-#todo copy scripts, crontab, logrotate

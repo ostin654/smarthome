@@ -1,20 +1,4 @@
-/var/lib/smarthome/pressure.log {
-    weekly
-    rotate 12
-    compress
-    missingok
-    notifempty
-}
-
-/var/lib/smarthome/floorheat.log {
-    weekly
-    rotate 12
-    compress
-    missingok
-    notifempty
-}
-
-/var/lib/smarthome/modbus.log {
+/var/lib/smarthome/modbus2.log {
     weekly
     rotate 12
     compress

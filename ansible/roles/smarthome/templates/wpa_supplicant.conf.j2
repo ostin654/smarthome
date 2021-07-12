@@ -1,0 +1,12 @@
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+country=RU
+
+network={
+    ssid="kisa1"
+    psk={{ lookup('ini', 'kisa1_password section=wifi file=secrets.ini') }}
+}
+network={
+    ssid="Kostin_bubnovo"
+    psk={{ lookup('ini', 'bubnovo_password section=wifi file=secrets.ini') }}
+}

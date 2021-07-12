@@ -1,0 +1,12 @@
+---
+
+- name: Install Zabbix-agent
+  hosts:
+    - pi
+  roles:
+    - role: community.zabbix.zabbix_agent
+      zabbix_version: '4.2'
+      zabbix_debian_os_family: 'raspbian'
+      zabbix_agent_server: 's.smarthome.net.ru,94.130.179.226,192.168.231.1'
+      zabbix_agent_serveractive: 's.smarthome.net.ru,94.130.179.226,192.168.231.1'
+  become: yes

@@ -1,5 +1,0 @@
----
-# vars file for smarthome
-
-zabbix_version: '4.0'
-zabbix_debian_os_family: 'raspbian'

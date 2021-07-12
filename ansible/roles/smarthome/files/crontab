@@ -1,3 +1,1 @@
-0-57/3 * * * * root /usr/bin/python /var/lib/smarthome/pressure.py >> /var/lib/smarthome/pressure.log
-1-58/3 * * * * root /usr/bin/python /var/lib/smarthome/floorheat.py >> /var/lib/smarthome/floorheat.log
-2-59/3 * * * * root /usr/bin/python /var/lib/smarthome/modbus.py >> /var/lib/smarthome/modbus.log
+1-59/2 * * * * root /usr/bin/python /var/lib/smarthome/modbus2.py >> /var/lib/smarthome/modbus2.log

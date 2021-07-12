@@ -1,4 +1,6 @@
 node_modules
 package-lock.json
 ansible/*.retry
+ansible/secrets.ini
 .DS_Store
+.idea

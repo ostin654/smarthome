@@ -1,2 +1,2 @@
 [pi]
-raspberry.local ansible_user=pi pi_family=raspberrypi
+raspberrypi.local ansible_user=pi pi_family=raspberrypi
