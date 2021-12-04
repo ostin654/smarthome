@@ -13,11 +13,31 @@ SoftwareSerial softSerial(SERIAL_RX, SERIAL_TX);
 ModbusKostin modbus(ADDRESS, &softSerial, DIR_PIN);
 GTimer_ms listenTimer;
 RH_ASK driver(2000, RF_PIN, 0, 0);
-uint8_t buf[4];
-uint8_t buflen = 4;
-uint8_t address = 0;
-uint32_t temperature = 0;
-uint8_t tries = 0;
+uint8_t buf[6];
+uint8_t buflen = 6;
+bool mode = false;
+
+uint16_t calculateCRC(uint8_t u8length) {
+  unsigned int temp, temp2, flag;
+  temp = 0xFFFF;
+  for (uint8_t i = 0; i < u8length; i++) {
+    temp = temp ^ buf[i];
+    for (uint8_t j = 1; j <= 8; j++) {
+      flag = temp & 0x0001;
+      temp >>=1;
+      if (flag) {
+        temp ^= 0xA001;
+      }
+    }
+  }
+  // Reverse byte order.
+  temp2 = temp >> 8;
+  temp = (temp << 8) | temp2;
+  temp &= 0xFFFF;
+  // the returned value is already swapped
+  // crcLo byte is first & crcHi byte is last
+  return temp;
+}
 
 void setup()
 {
@@ -27,46 +47,66 @@ void setup()
   Serial.begin(9600);
   while (!Serial);
 
-  listenTimer.setInterval(60000);
-  listenTimer.setMode(MANUAL);
+  listenTimer.setInterval(61865);
 
   driver.init();
 
   modbus.begin(38400);
-  modbus.setRegisterLimits(1, 2);
+  modbus.setInputRegisterLimits(1, 3);
 
-  modbus.setRegisterValue(1, 0);
-  modbus.setRegisterValue(2, 0);
+  modbus.setInputRegisterValue(1, 0);
+  modbus.setInputRegisterValue(2, 0);
+  modbus.setInputRegisterValue(3, 0);
 }
 
 void loop()
 {
   if (listenTimer.isReady()) {
+    mode = !mode;
+
+    if (mode) {
+      modbus.setInputRegisterValue(2, 0);
+      modbus.setInputRegisterValue(3, 0);
+    }
+  }
+
+  if (mode) {
     digitalWrite(LED_BUILTIN, LOW);
+    modbus.setInputRegisterValue(1, millis() / 60000);
+
     if (driver.recv(buf, &buflen)) {
-      address = buf[1];
-  
-      temperature = buf[3];
-      temperature <<=8;
+      uint16_t address = buf[1];
+      address <<= 8;
+      address |= buf[0];
+
+      uint32_t temperature = buf[3];
+      temperature <<= 8;
       temperature |= buf[2];
-  
-      modbus.setRegisterValue(1, millis() / 60000);
-      modbus.setRegisterValue(2, temperature);
-  
-      Serial.print("Address: ");
-      Serial.print(address, HEX);
-      Serial.print(" Temperature: ");
-      Serial.println(temperature);
-      
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(30);
-      digitalWrite(LED_BUILTIN, LOW);
-  
-      tries++;
-  
-      if (tries>3) {
-        tries = 0;
-        listenTimer.reset();
+
+      uint16_t crc = buf[5];
+      crc <<= 8;
+      crc |= buf[4];
+
+      if (crc == calculateCRC(4)) {
+        switch (address) {
+          case 0x37:
+            modbus.setInputRegisterValue(2, temperature+10000);
+            break;
+          case 0x28:
+            modbus.setInputRegisterValue(3, temperature+10000);
+            break;
+          default:
+            Serial.println("Invalid Address!");
+            break;
+        }
+    
+        Serial.print("Address: ");
+        Serial.print(address, HEX);
+        Serial.print(" Temperature: ");
+        Serial.print(temperature);
+        Serial.println();
+      } else {
+        Serial.println("Invalid CRC16!");
       }
     }
   } else {

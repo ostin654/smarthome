@@ -9,16 +9,60 @@
 #define BMP_ENABLE
 #define MCU_SLEEP
 #define DELAY 1
+//#define ADDRESS 0x28
 #define ADDRESS 0x37
+#define TEST_ADDRESS1 0x28
+#define TEST_ADDRESS2 0x37
+#define TEST_ADDRESS3 0x51
+#define RF_PIN 2
 
-RH_ASK driver(2000, 0, 2, 0);
+RH_ASK driver(2000, 0, RF_PIN, 0);
 bool bmxStatus = false;
-uint8_t buf[4];
+uint8_t buf[6];
 
 #ifdef BMP_ENABLE
 Adafruit_BME280 bmx;
 #endif
 
+uint16_t getAddress() {
+  #ifdef ADDRESS
+  return ADDRESS;
+  #else
+  switch (random(100) % 3) {
+    case 0:
+      return TEST_ADDRESS1;
+      break;
+    case 1:
+      return TEST_ADDRESS2;
+      break;
+    case 2:
+      return TEST_ADDRESS3;
+      break;
+  }
+  #endif
+}
+
+uint16_t calculateCRC(uint8_t u8length) {
+  unsigned int temp, temp2, flag;
+  temp = 0xFFFF;
+  for (uint8_t i = 0; i < u8length; i++) {
+    temp = temp ^ buf[i];
+    for (uint8_t j = 1; j <= 8; j++) {
+      flag = temp & 0x0001;
+      temp >>=1;
+      if (flag) {
+        temp ^= 0xA001;
+      }
+    }
+  }
+  // Reverse byte order.
+  temp2 = temp >> 8;
+  temp = (temp << 8) | temp2;
+  temp &= 0xFFFF;
+  // the returned value is already swapped
+  // crcLo byte is first & crcHi byte is last
+  return temp;
+}
 
 void setup()
 {
@@ -56,11 +100,9 @@ void setup()
     }
   }
 
-
   digitalWrite(LED_BUILTIN, HIGH);
   delay(500);
   digitalWrite(LED_BUILTIN, LOW);
-  delay(500);
 
   #ifdef MCU_SLEEP
   //autoCalibrate();
@@ -69,21 +111,18 @@ void setup()
   bodInSleep(false);
   hardwareDisable(PWR_ADC | PWR_USB | PWR_UART0 | PWR_SPI | PWR_TIMER2);// | PWR_TIMER1);
   #endif
-
-  
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(100);
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(50);
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(100);
-  digitalWrite(LED_BUILTIN, LOW);
-
 }
 
 void loop()   
 {
   if (bmxStatus) {
+    uint16_t address = getAddress();
+
+    buf[0] = 0;
+    buf[0] |= address;
+    buf[1] = 0;
+    buf[1] |= address >> 8;
+
     uint32_t temperature = 0;
     #ifdef BMP_ENABLE
     temperature = (uint32_t) (bmx.readTemperature() * 100);
@@ -91,12 +130,16 @@ void loop()
     temperature = (uint32_t) (millis() % 1000);
     #endif
 
-    buf[0] = 0;
-    buf[1] = ADDRESS;
     buf[2] = 0;
     buf[2] |= temperature;
     buf[3] = 0;
     buf[3] |= temperature >> 8;
+
+    uint16_t crc = calculateCRC(4);
+    buf[4] = 0;
+    buf[4] |= crc;
+    buf[5] = 0;
+    buf[5] = crc >> 8;
 
     #ifndef MCU_SLEEP
     Serial.print(buf[0], HEX);
@@ -105,25 +148,33 @@ void loop()
     Serial.print(" ");
     Serial.print(buf[2], HEX);
     Serial.print(" ");
-    Serial.println(buf[3], HEX);
+    Serial.print(buf[3], HEX);
+    Serial.print(" ");
+    Serial.print(buf[4], HEX);
+    Serial.print(" ");
+    Serial.print(buf[5], HEX);
+    Serial.println();
     #endif
-    
-    for (byte i=0;i<5;i++) {
-      driver.send((const uint8_t *)&buf, 4);
+
+    for (byte i=0;i<2;i++) {
+      driver.send((const uint8_t *)&buf, 6);
       driver.waitPacketSent();
     }
   }
 
+  #ifndef MCU_SLEEP
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(50);
+  delay(10);
   digitalWrite(LED_BUILTIN, LOW);
+  #endif
   
   #ifdef MCU_SLEEP
   sleep(SLEEP_8192MS);
   sleep(SLEEP_8192MS);
   sleep(SLEEP_4096MS);
   sleep(SLEEP_2048MS);
-  sleep(SLEEP_512MS);
+  sleep(SLEEP_2048MS);
+  //sleep(SLEEP_512MS);
   #else
   delay(2000);
   #endif
